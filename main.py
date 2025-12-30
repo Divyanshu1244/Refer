@@ -66,11 +66,14 @@ def force_buttons():
         ]
     )
 
-# ================= START (PHOTO + TEXT) =================
+# ================= START (WITH LOADING) =================
 @app.on_message(filters.command("start") & filters.private)
 async def start(_, message):
     uid = message.from_user.id
     args = message.command
+
+    # 🔥 INSTANT RESPONSE
+    loading = await message.reply("⏳ Loading...")
 
     user = users.find_one({"user_id": uid})
 
@@ -92,16 +95,24 @@ async def start(_, message):
         })
 
     if not await is_joined(uid):
+        await loading.delete()
         await message.reply(
             "⚠️ Pehle **dono channels** join karo.\nJoin ke baad **Joined** button dabao.",
             reply_markup=force_buttons()
         )
         return
 
-    users.update_one({"user_id": uid}, {"$set": {"joined_confirmed": 1}})
+    users.update_one(
+        {"user_id": uid},
+        {"$set": {"joined_confirmed": 1}}
+    )
 
+    # 🔥 REMOVE LOADING
+    await loading.delete()
+
+    # ✅ FINAL PHOTO + TEXT
     await message.reply_photo(
-        photo="start.png",
+        photo="start.png",   # image must be in same folder
         caption=(
             "🔥 *Referral Tournament Live!* 🔥\n\n"
             "👥 Friends ko invite karo aur rewards jeeto\n\n"
