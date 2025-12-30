@@ -17,7 +17,7 @@ UPDATE_CHANNEL = "@YourUpdateChannel"
 TOURNAMENT_END = datetime(2025, 1, 10)
 
 # MongoDB URL (Railway variable recommended)
-MONGO_URL = os.getenv("MONGO_URL") or "PASTE_YOUR_MONGO_URL_HERE"
+MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
 # =========================================
 
 # ================= BOT =================
