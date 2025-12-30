@@ -60,7 +60,6 @@ async def is_joined(user_id):
     except:
         return False
 
-
 def force_buttons():
     return InlineKeyboardMarkup(
         [
@@ -138,7 +137,7 @@ async def start(_, message):
 async def joined(_, query):
     uid = query.from_user.id
 
-if not await is_joined(uid):
+    if not await is_joined(uid):
         await query.answer("❌ Abhi dono channels join nahi hue", show_alert=True)
         return
 
