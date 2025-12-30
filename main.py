@@ -12,7 +12,7 @@ API_HASH = os.getenv("API_HASH") or "1d8fc7e8552f7141d5071f184af921e7"
 
 MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
 
-FORCE_CHANNEL_1 = "@chatmola_db"
+FORCE_CHANNEL_1 = "@tushar900075"
 FORCE_CHANNEL_2 = "@payalgamingviralvideo123"
 
 SUPPORT_ID = "@YourSupportUsername"
@@ -66,7 +66,7 @@ def force_buttons():
         ]
     )
 
-# ================= START =================
+# ================= START (PHOTO + TEXT) =================
 @app.on_message(filters.command("start") & filters.private)
 async def start(_, message):
     uid = message.from_user.id
@@ -100,8 +100,13 @@ async def start(_, message):
 
     users.update_one({"user_id": uid}, {"$set": {"joined_confirmed": 1}})
 
-    await message.reply(
-        "🏆 Referral Tournament Active\n\nChoose option below 👇",
+    await message.reply_photo(
+        photo="start.png",
+        caption=(
+            "🔥 *Referral Tournament Live!* 🔥\n\n"
+            "👥 Friends ko invite karo aur rewards jeeto\n\n"
+            "👇 Options choose karo"
+        ),
         reply_markup=main_menu()
     )
 
@@ -125,7 +130,7 @@ async def joined(_, query):
         reply_markup=main_menu()
     )
 
-# ================= MENU HANDLER (FIXED) =================
+# ================= MENU HANDLER =================
 @app.on_message(filters.text & filters.private & ~filters.regex("^/"))
 async def menu(_, message):
     uid = message.from_user.id
