@@ -12,14 +12,12 @@ API_HASH = os.getenv("API_HASH") or "1d8fc7e8552f7141d5071f184af921e7"
 
 MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
 
-# 🔥 TWO FORCE SUB CHANNELS
 FORCE_CHANNEL_1 = "@tushar900075"
 FORCE_CHANNEL_2 = "@payalgamingviralvideo123"
 
 SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "@YourUpdateChannel"
 
-# 🔐 ADMIN
 ADMIN_IDS = [6335046711]
 # =========================================
 
@@ -141,8 +139,8 @@ async def joined_check(_, query):
         reply_markup=main_menu()
     )
 
-# ================= MENU HANDLER =================
-@app.on_message(filters.text & filters.private)
+# ================= MENU HANDLER (FIXED) =================
+@app.on_message(filters.text & filters.private & ~filters.command)
 async def menu(_, message):
     uid = message.from_user.id
     text = message.text
@@ -206,7 +204,7 @@ async def broadcast(_, message):
         try:
             await message.reply_to_message.copy(user["user_id"])
             sent += 1
-            await asyncio.sleep(0.05)  # anti-flood
+            await asyncio.sleep(0.05)
         except:
             failed += 1
 
