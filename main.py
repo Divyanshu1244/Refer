@@ -100,55 +100,55 @@ async def start(_, message):
         return
 
     # confirm join & referral
-cur.execute(
-    "SELECT joined_confirmed, referred_by FROM users WHERE user_id=?",
-    (uid,)
-)
-joined, referred_by = cur.fetchone()
-
-if joined == 0:
-    # mark joined
     cur.execute(
-        "UPDATE users SET joined_confirmed=1 WHERE user_id=?",
+        "SELECT joined_confirmed, referred_by FROM users WHERE user_id=?",
         (uid,)
     )
+    joined, referred_by = cur.fetchone()
 
-    if referred_by != 0:
-        # increment referral
+    if joined == 0:
+        # mark joined
         cur.execute(
-            "UPDATE users SET referrals = referrals + 1 WHERE user_id=?",
-            (referred_by,)
+            "UPDATE users SET joined_confirmed=1 WHERE user_id=?",
+            (uid,)
         )
 
-        # -------- LOGGER MESSAGE --------
-        try:
-            new_user = message.from_user
-
-            if new_user.username:
-                display = f"@{new_user.username}"
-            else:
-                display = new_user.first_name or "New User"
-
+        if referred_by != 0:
+            # increment referral
             cur.execute(
-                "SELECT referrals FROM users WHERE user_id=?",
+                "UPDATE users SET referrals = referrals + 1 WHERE user_id=?",
                 (referred_by,)
             )
-            total = cur.fetchone()[0]
 
-            await app.send_message(
-                referred_by,
-                f"➕ New Referral ({display})\n\n"
-                f"Total Referrals = {total}"
-            )
-        except:
-            pass
+            # -------- LOGGER MESSAGE --------
+            try:
+                new_user = message.from_user
 
-    conn.commit()
+                if new_user.username:
+                    display = f"@{new_user.username}"
+                else:
+                    display = new_user.first_name or "New User"
 
-    await message.reply(
-        "🏆 Referral Tournament Active\n\nChoose option below 👇",
-        reply_markup=main_menu()
-    )
+                cur.execute(
+                    "SELECT referrals FROM users WHERE user_id=?",
+                    (referred_by,)
+                )
+                total = cur.fetchone()[0]
+
+                await app.send_message(  # Fixed: Now inside async function with proper indentation
+                    referred_by,
+                    f"➕ New Referral ({display})\n\n"
+                    f"Total Referrals = {total}"
+                )
+            except:
+                pass
+
+        conn.commit()  # Fixed: Moved inside if joined == 0 block
+
+        await message.reply(  # Fixed: Now inside async function with proper indentation
+            "🏆 Referral Tournament Active\n\nChoose option below 👇",
+            reply_markup=main_menu()
+        )
 
 # ================= MENU HANDLER =================
 @app.on_message(filters.text & filters.private)
