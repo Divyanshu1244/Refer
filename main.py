@@ -1,4 +1,5 @@
 import os
+import asyncio
 from pymongo import MongoClient
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
@@ -17,6 +18,9 @@ FORCE_CHANNEL_2 = "@payalgamingviralvideo123"
 
 SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "@YourUpdateChannel"
+
+# 🔐 ADMIN
+ADMIN_IDS = [6335046711]
 # =========================================
 
 # ================= BOT =================
@@ -45,7 +49,7 @@ def main_menu():
         resize_keyboard=True
     )
 
-# ================= FORCE JOIN CHECK (2 CHANNELS) =================
+# ================= FORCE JOIN CHECK =================
 async def is_joined(user_id):
     try:
         m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
@@ -56,7 +60,6 @@ async def is_joined(user_id):
             ChatMemberStatus.ADMINISTRATOR,
             ChatMemberStatus.OWNER
         )
-
         return (m1.status in ok) and (m2.status in ok)
     except:
         return False
@@ -95,7 +98,6 @@ async def start(_, message):
             "joined_confirmed": 0
         })
 
-    # 🔥 FORCE SUB ONLY HERE
     if not await is_joined(uid):
         await message.reply(
             "⚠️ Pehle **dono channels** join karo.\nJoin ke baad **Joined** button dabao.",
@@ -118,16 +120,26 @@ async def start(_, message):
 async def joined_check(_, query):
     uid = query.from_user.id
 
-    if await is_joined(uid):
-        await query.message.edit_text(
-            "✅ Thanks! Tum dono channels join kar chuke ho.\n\nChoose option below 👇",
-            reply_markup=main_menu()
+    if not await is_joined(uid):
+        await query.answer("❌ Abhi dono channels join nahi hue", show_alert=True)
+        return
+
+    user = users.find_one({"user_id": uid})
+    if user and user.get("joined_confirmed", 0) == 0:
+        users.update_one(
+            {"user_id": uid},
+            {"$set": {"joined_confirmed": 1}}
         )
-    else:
-        await query.answer(
-            "❌ Abhi dono channels join nahi hue",
-            show_alert=True
-        )
+        if user.get("referred_by", 0) != 0:
+            users.update_one(
+                {"user_id": user["referred_by"]},
+                {"$inc": {"referrals": 1}}
+            )
+
+    await query.message.edit_text(
+        "✅ Thanks! Tum dono channels join kar chuke ho.\n\nChoose option below 👇",
+        reply_markup=main_menu()
+    )
 
 # ================= MENU HANDLER =================
 @app.on_message(filters.text & filters.private)
@@ -138,7 +150,6 @@ async def menu(_, message):
     if text == "🔗 My referrals":
         me = await app.get_me()
         link = f"https://t.me/{me.username}?start={uid}"
-
         user = users.find_one({"user_id": uid})
         count = user.get("referrals", 0) if user else 0
 
@@ -148,13 +159,11 @@ async def menu(_, message):
 
     elif text == "📊 Leaderboard":
         rows = users.find().sort("referrals", -1).limit(30)
-
         msg = "🏆 TOP LEADERBOARD\n\n"
         i = 1
         for u in rows:
             msg += f"{i}. User {u['user_id']} — {u.get('referrals', 0)}\n"
             i += 1
-
         await message.reply(msg)
 
     elif text == "📜 Rules":
@@ -172,6 +181,39 @@ async def menu(_, message):
     elif text == "🆘 Support":
         await message.reply(f"🆘 Support: {SUPPORT_ID}")
 
+# ================= ADMIN: TOTAL USERS =================
+@app.on_message(filters.command("total") & filters.private)
+async def total_users(_, message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    total = users.count_documents({})
+    await message.reply(f"👥 Total Users: {total}")
+
+# ================= ADMIN: BROADCAST =================
+@app.on_message(filters.command("broadcast") & filters.private)
+async def broadcast(_, message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    if not message.reply_to_message:
+        await message.reply("❌ Kisi message ko reply karke /broadcast likho")
+        return
+
+    sent = 0
+    failed = 0
+
+    for user in users.find({}, {"user_id": 1}):
+        try:
+            await message.reply_to_message.copy(user["user_id"])
+            sent += 1
+            await asyncio.sleep(0.05)  # anti-flood
+        except:
+            failed += 1
+
+    await message.reply(
+        f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}"
+    )
+
 # ================= RUN =================
-print("🤖 Sanju i love you ")
+print("🤖 Sanju i love you")
 app.run()
