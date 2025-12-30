@@ -38,11 +38,17 @@ users = db["users"]
 def main_menu():
     return ReplyKeyboardMarkup(
         [
-            [KeyboardButton("🔗 My referrals")],
-            [KeyboardButton("📊 Leaderboard")],
-            [KeyboardButton("📜 Rules")],
-            [KeyboardButton("📢 Updates")],
-            [KeyboardButton("🆘 Support")]
+            [
+                KeyboardButton("🔗 My referrals"),
+                KeyboardButton("📢 Updates")
+            ],
+            [
+                KeyboardButton("📜 Rules"),
+                KeyboardButton("🆘 Support")
+            ],
+            [
+                KeyboardButton("📊 Leaderboard")
+            ]
         ],
         resize_keyboard=True
     )
