@@ -29,7 +29,7 @@ app = Client(
     bot_token=BOT_TOKEN
 )
 
-# ================= MONGODB =================
+# ================= DB =================
 mongo = MongoClient(MONGO_URL)
 db = mongo["referralbot"]
 users = db["users"]
@@ -47,17 +47,12 @@ def main_menu():
         resize_keyboard=True
     )
 
-# ================= FORCE JOIN CHECK =================
+# ================= FORCE JOIN =================
 async def is_joined(user_id):
     try:
         m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
         m2 = await app.get_chat_member(FORCE_CHANNEL_2, user_id)
-
-        ok = (
-            ChatMemberStatus.MEMBER,
-            ChatMemberStatus.ADMINISTRATOR,
-            ChatMemberStatus.OWNER
-        )
+        ok = (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER)
         return (m1.status in ok) and (m2.status in ok)
     except:
         return False
@@ -103,10 +98,7 @@ async def start(_, message):
         )
         return
 
-    users.update_one(
-        {"user_id": uid},
-        {"$set": {"joined_confirmed": 1}}
-    )
+    users.update_one({"user_id": uid}, {"$set": {"joined_confirmed": 1}})
 
     await message.reply(
         "🏆 Referral Tournament Active\n\nChoose option below 👇",
@@ -115,7 +107,7 @@ async def start(_, message):
 
 # ================= JOINED BUTTON =================
 @app.on_callback_query(filters.regex("^joined$"))
-async def joined_check(_, query):
+async def joined(_, query):
     uid = query.from_user.id
 
     if not await is_joined(uid):
@@ -124,15 +116,9 @@ async def joined_check(_, query):
 
     user = users.find_one({"user_id": uid})
     if user and user.get("joined_confirmed", 0) == 0:
-        users.update_one(
-            {"user_id": uid},
-            {"$set": {"joined_confirmed": 1}}
-        )
-        if user.get("referred_by", 0) != 0:
-            users.update_one(
-                {"user_id": user["referred_by"]},
-                {"$inc": {"referrals": 1}}
-            )
+        users.update_one({"user_id": uid}, {"$set": {"joined_confirmed": 1}})
+        if user.get("referred_by", 0):
+            users.update_one({"user_id": user["referred_by"]}, {"$inc": {"referrals": 1}})
 
     await query.message.edit_text(
         "✅ Thanks! Tum dono channels join kar chuke ho.\n\nChoose option below 👇",
@@ -140,7 +126,7 @@ async def joined_check(_, query):
     )
 
 # ================= MENU HANDLER (FIXED) =================
-@app.on_message(filters.text & filters.private & ~filters.command)
+@app.on_message(filters.text & filters.private & ~filters.regex("^/"))
 async def menu(_, message):
     uid = message.from_user.id
     text = message.text
@@ -150,18 +136,13 @@ async def menu(_, message):
         link = f"https://t.me/{me.username}?start={uid}"
         user = users.find_one({"user_id": uid})
         count = user.get("referrals", 0) if user else 0
-
-        await message.reply(
-            f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}"
-        )
+        await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}")
 
     elif text == "📊 Leaderboard":
         rows = users.find().sort("referrals", -1).limit(30)
         msg = "🏆 TOP LEADERBOARD\n\n"
-        i = 1
-        for u in rows:
+        for i, u in enumerate(rows, start=1):
             msg += f"{i}. User {u['user_id']} — {u.get('referrals', 0)}\n"
-            i += 1
         await message.reply(msg)
 
     elif text == "📜 Rules":
@@ -181,11 +162,10 @@ async def menu(_, message):
 
 # ================= ADMIN: TOTAL USERS =================
 @app.on_message(filters.command("total") & filters.private)
-async def total_users(_, message):
+async def total(_, message):
     if message.from_user.id not in ADMIN_IDS:
         return
-    total = users.count_documents({})
-    await message.reply(f"👥 Total Users: {total}")
+    await message.reply(f"👥 Total Users: {users.count_documents({})}")
 
 # ================= ADMIN: BROADCAST =================
 @app.on_message(filters.command("broadcast") & filters.private)
@@ -197,20 +177,16 @@ async def broadcast(_, message):
         await message.reply("❌ Kisi message ko reply karke /broadcast likho")
         return
 
-    sent = 0
-    failed = 0
-
-    for user in users.find({}, {"user_id": 1}):
+    sent, failed = 0, 0
+    for u in users.find({}, {"user_id": 1}):
         try:
-            await message.reply_to_message.copy(user["user_id"])
+            await message.reply_to_message.copy(u["user_id"])
             sent += 1
             await asyncio.sleep(0.05)
         except:
             failed += 1
 
-    await message.reply(
-        f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}"
-    )
+    await message.reply(f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}")
 
 # ================= RUN =================
 print("🤖 Sanju i love you")
