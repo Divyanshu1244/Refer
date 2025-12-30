@@ -1,23 +1,21 @@
+import os
+import asyncio
 from datetime import datetime
+from pymongo import MongoClient
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatMemberStatus
-from pymongo import MongoClient
-import os
 
 # ================= CONFIG =================
-BOT_TOKEN = "8231560346:AAEYH6--lmZyOc3vyb2ju-tPkhDJf05rrvU"
-API_ID = 36030323
-API_HASH = "1d8fc7e8552f7141d5071f184af921e7"
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "8231560346:AAEYH6--lmZyOc3vyb2ju-tPkhDJf05rrvU"
+API_ID = int(os.getenv("API_ID") or 36030323)
+API_HASH = os.getenv("API_HASH") or "1d8fc7e8552f7141d5071f184af921e7"
+
+MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
 
 FORCE_CHANNEL = "@tushar900075"
 SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "@YourUpdateChannel"
-
-TOURNAMENT_END = datetime(2025, 1, 10)
-
-# MongoDB URL (Railway variable recommended)
-MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
 # =========================================
 
 # ================= BOT =================
@@ -27,6 +25,8 @@ app = Client(
     api_hash=API_HASH,
     bot_token=BOT_TOKEN
 )
+
+BOT_USERNAME = None  # cache
 
 # ================= MONGODB =================
 mongo = MongoClient(MONGO_URL)
@@ -46,7 +46,7 @@ def main_menu():
         resize_keyboard=True
     )
 
-# ================= FORCE JOIN =================
+# ================= FORCE JOIN (ONLY /start) =================
 async def is_joined(user_id):
     try:
         m = await app.get_chat_member(FORCE_CHANNEL, user_id)
@@ -59,10 +59,18 @@ async def is_joined(user_id):
         return False
 
 # ================= START =================
-@app.on_message(filters.command("start"))
+@app.on_message(filters.command("start") & filters.private)
 async def start(_, message):
+    global BOT_USERNAME
+
+    if BOT_USERNAME is None:
+        BOT_USERNAME = (await app.get_me()).username
+
     uid = message.from_user.id
     args = message.command
+
+    # instant reply (user feels fast)
+    await message.reply("⏳ Loading...")
 
     user = users.find_one({"user_id": uid})
 
@@ -83,7 +91,7 @@ async def start(_, message):
             "joined_confirmed": 0
         })
 
-    # force join
+    # force join check ONLY here
     if not await is_joined(uid):
         btn = InlineKeyboardMarkup(
             [[InlineKeyboardButton(
@@ -92,7 +100,7 @@ async def start(_, message):
             )]]
         )
         await message.reply(
-            "⚠️ Pehle channel join karo.\nJoin ke baad /start dubara dabao.",
+            "⚠️ Pehle channel join karo.\nJoin ke baad /start dabao.",
             reply_markup=btn
         )
         return
@@ -116,12 +124,11 @@ async def start(_, message):
                 display = f"@{new_user.username}" if new_user.username else (new_user.first_name or "New User")
 
                 ref_user = users.find_one({"user_id": user["referred_by"]})
-                total = ref_user["referrals"]
+                total = ref_user.get("referrals", 0)
 
                 await app.send_message(
                     user["referred_by"],
-                    f"➕ New Referral ({display})\n\n"
-                    f"Total Referrals = {total}"
+                    f"➕ New Referral ({display})\n\nTotal Referrals = {total}"
                 )
             except:
                 pass
@@ -136,16 +143,24 @@ async def start(_, message):
 async def menu(_, message):
     uid = message.from_user.id
     text = message.text
-    me = await app.get_me()
 
-    if not await is_joined(uid):
-        await message.reply("⚠️ Channel join required.")
-        return
+    # NO force join check here (important)
 
     if text == "🔗 Refer & Win":
-        link = f"https://t.me/{me.username}?start={uid}"
         user = users.find_one({"user_id": uid})
-        count = user["referrals"]
+
+        if not user:
+            users.insert_one({
+                "user_id": uid,
+                "referred_by": 0,
+                "referrals": 0,
+                "joined_confirmed": 1
+            })
+            count = 0
+        else:
+            count = user.get("referrals", 0)
+
+        link = f"https://t.me/{BOT_USERNAME}?start={uid}"
 
         await message.reply(
             f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}"
@@ -157,7 +172,7 @@ async def menu(_, message):
         msg = "🏆 TOP 30 LEADERBOARD\n\n"
         i = 1
         for u in rows:
-            msg += f"{i}. User {u['user_id']} — {u['referrals']}\n"
+            msg += f"{i}. User {u['user_id']} — {u.get('referrals', 0)}\n"
             i += 1
 
         await message.reply(msg)
