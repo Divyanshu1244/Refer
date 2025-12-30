@@ -72,9 +72,22 @@ async def start(_, message):
     uid = message.from_user.id
     args = message.command
 
-    # 🔥 INSTANT RESPONSE
+    # 🔥 Loading message
     loading = await message.reply("⏳ Loading...")
 
+    # 🔥 FORCE DELETE AFTER 10 SECONDS (NO DEPENDENCY)
+    async def delete_loading():
+        await asyncio.sleep(10)
+        try:
+            await loading.delete()
+        except:
+            pass
+
+    asyncio.create_task(delete_loading())
+
+    # -------------------------
+    # NORMAL CODE CONTINUES
+    # -------------------------
     user = users.find_one({"user_id": uid})
 
     ref_id = 0
@@ -95,7 +108,6 @@ async def start(_, message):
         })
 
     if not await is_joined(uid):
-        await loading.delete()
         await message.reply(
             "⚠️ Pehle **dono channels** join karo.\nJoin ke baad **Joined** button dabao.",
             reply_markup=force_buttons()
@@ -107,16 +119,12 @@ async def start(_, message):
         {"$set": {"joined_confirmed": 1}}
     )
 
-    # 🔥 REMOVE LOADING
-    await loading.delete()
-
-    # ✅ FINAL PHOTO + TEXT
     await message.reply_photo(
-        photo="start.png",   # image must be in same folder
+        photo="start.png",
         caption=(
             "🔥 *Referral Tournament Live!* 🔥\n\n"
-            "👥 Friends ko invite karo aur rewards jeeto\n\n"
-            "👇 Options choose karo"
+            "👥 Refer friends & win rewards\n"
+            "👇 Options niche diye gaye hain"
         ),
         reply_markup=main_menu()
     )
