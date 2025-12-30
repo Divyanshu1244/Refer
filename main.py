@@ -36,7 +36,7 @@ users = db["users"]
 def main_menu():
     return ReplyKeyboardMarkup(
         [
-            [KeyboardButton("🔗 Refer & Win")],
+            [KeyboardButton("🔗 My referals")],
             [KeyboardButton("📊 Leaderboard")],
             [KeyboardButton("📜 Rules")],
             [KeyboardButton("📢 Updates")],
@@ -149,7 +149,7 @@ async def menu(_, message):
     elif text == "📊 Leaderboard":
         rows = users.find().sort("referrals", -1).limit(30)
 
-        msg = "🏆 TOP 30 LEADERBOARD\n\n"
+        msg = "🏆 TOP LEADERBOARD\n\n"
         i = 1
         for u in rows:
             msg += f"{i}. User {u['user_id']} — {u.get('referrals', 0)}\n"
@@ -173,5 +173,5 @@ async def menu(_, message):
         await message.reply(f"🆘 Support: {SUPPORT_ID}")
 
 # ================= RUN =================
-print("🤖 Bot Started")
+print("🤖 Sanju i love you ")
 app.run()
