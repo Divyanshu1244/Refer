@@ -36,7 +36,7 @@ users = db["users"]
 def main_menu():
     return ReplyKeyboardMarkup(
         [
-            [KeyboardButton("🔗 My referals")],
+            [KeyboardButton("🔗 My referrals")],
             [KeyboardButton("📊 Leaderboard")],
             [KeyboardButton("📜 Rules")],
             [KeyboardButton("📢 Updates")],
@@ -135,7 +135,7 @@ async def menu(_, message):
     uid = message.from_user.id
     text = message.text
 
-    if text == "🔗 Refer & Win":
+    if text == "🔗 My referrals":
         me = await app.get_me()
         link = f"https://t.me/{me.username}?start={uid}"
 
