@@ -1,8 +1,9 @@
-import sqlite3
 from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatMemberStatus
+from pymongo import MongoClient
+import os
 
 # ================= CONFIG =================
 BOT_TOKEN = "8231560346:AAEYH6--lmZyOc3vyb2ju-tPkhDJf05rrvU"
@@ -13,9 +14,13 @@ FORCE_CHANNEL = "@tushar900075"
 SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "@YourUpdateChannel"
 
-TOURNAMENT_END = datetime(2025, 1, 10)  # change date
+TOURNAMENT_END = datetime(2025, 1, 10)
+
+# MongoDB URL (Railway variable recommended)
+MONGO_URL = os.getenv("MONGO_URL") or "PASTE_YOUR_MONGO_URL_HERE"
 # =========================================
 
+# ================= BOT =================
 app = Client(
     "referral_bot",
     api_id=API_ID,
@@ -23,19 +28,10 @@ app = Client(
     bot_token=BOT_TOKEN
 )
 
-# ================= DATABASE =================
-conn = sqlite3.connect("users.db", check_same_thread=False)
-cur = conn.cursor()
-
-cur.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    referred_by INTEGER DEFAULT 0,
-    referrals INTEGER DEFAULT 0,
-    joined_confirmed INTEGER DEFAULT 0
-)
-""")
-conn.commit()
+# ================= MONGODB =================
+mongo = MongoClient(MONGO_URL)
+db = mongo["referralbot"]
+users = db["users"]
 
 # ================= MENU =================
 def main_menu():
@@ -68,9 +64,7 @@ async def start(_, message):
     uid = message.from_user.id
     args = message.command
 
-    # register user
-    cur.execute("SELECT user_id FROM users WHERE user_id=?", (uid,))
-    user = cur.fetchone()
+    user = users.find_one({"user_id": uid})
 
     ref_id = 0
     if len(args) > 1:
@@ -82,16 +76,20 @@ async def start(_, message):
             ref_id = 0
 
     if not user:
-        cur.execute(
-            "INSERT INTO users (user_id, referred_by) VALUES (?,?)",
-            (uid, ref_id)
-        )
-        conn.commit()
+        users.insert_one({
+            "user_id": uid,
+            "referred_by": ref_id,
+            "referrals": 0,
+            "joined_confirmed": 0
+        })
 
     # force join
     if not await is_joined(uid):
         btn = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{FORCE_CHANNEL[1:]}")]]
+            [[InlineKeyboardButton(
+                "📢 Join Channel",
+                url=f"https://t.me/{FORCE_CHANNEL[1:]}"
+            )]]
         )
         await message.reply(
             "⚠️ Pehle channel join karo.\nJoin ke baad /start dubara dabao.",
@@ -99,56 +97,39 @@ async def start(_, message):
         )
         return
 
-    # confirm join & referral
-    cur.execute(
-        "SELECT joined_confirmed, referred_by FROM users WHERE user_id=?",
-        (uid,)
-    )
-    joined, referred_by = cur.fetchone()
+    user = users.find_one({"user_id": uid})
 
-    if joined == 0:
-        # mark joined
-        cur.execute(
-            "UPDATE users SET joined_confirmed=1 WHERE user_id=?",
-            (uid,)
+    if user["joined_confirmed"] == 0:
+        users.update_one(
+            {"user_id": uid},
+            {"$set": {"joined_confirmed": 1}}
         )
 
-        if referred_by != 0:
-            # increment referral
-            cur.execute(
-                "UPDATE users SET referrals = referrals + 1 WHERE user_id=?",
-                (referred_by,)
+        if user["referred_by"] != 0:
+            users.update_one(
+                {"user_id": user["referred_by"]},
+                {"$inc": {"referrals": 1}}
             )
 
-            # -------- LOGGER MESSAGE --------
             try:
                 new_user = message.from_user
+                display = f"@{new_user.username}" if new_user.username else (new_user.first_name or "New User")
 
-                if new_user.username:
-                    display = f"@{new_user.username}"
-                else:
-                    display = new_user.first_name or "New User"
+                ref_user = users.find_one({"user_id": user["referred_by"]})
+                total = ref_user["referrals"]
 
-                cur.execute(
-                    "SELECT referrals FROM users WHERE user_id=?",
-                    (referred_by,)
-                )
-                total = cur.fetchone()[0]
-
-                await app.send_message(  # Fixed: Now inside async function with proper indentation
-                    referred_by,
+                await app.send_message(
+                    user["referred_by"],
                     f"➕ New Referral ({display})\n\n"
                     f"Total Referrals = {total}"
                 )
             except:
                 pass
 
-        conn.commit()  # Fixed: Moved inside if joined == 0 block
-
-        await message.reply(  # Fixed: Now inside async function with proper indentation
-            "🏆 Referral Tournament Active\n\nChoose option below 👇",
-            reply_markup=main_menu()
-        )
+    await message.reply(
+        "🏆 Referral Tournament Active\n\nChoose option below 👇",
+        reply_markup=main_menu()
+    )
 
 # ================= MENU HANDLER =================
 @app.on_message(filters.text & filters.private)
@@ -163,27 +144,20 @@ async def menu(_, message):
 
     if text == "🔗 Refer & Win":
         link = f"https://t.me/{me.username}?start={uid}"
-        cur.execute("SELECT referrals FROM users WHERE user_id=?", (uid,))
-        count = cur.fetchone()[0]
+        user = users.find_one({"user_id": uid})
+        count = user["referrals"]
 
         await message.reply(
             f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}"
         )
 
     elif text == "📊 Leaderboard":
-        cur.execute(
-            "SELECT user_id, referrals FROM users ORDER BY referrals DESC LIMIT 30"
-        )
-        rows = cur.fetchall()
-
-        if not rows:
-            await message.reply("No data yet.")
-            return
+        rows = users.find().sort("referrals", -1).limit(30)
 
         msg = "🏆 TOP 30 LEADERBOARD\n\n"
         i = 1
-        for u, r in rows:
-            msg += f"{i}. User {u} — {r}\n"
+        for u in rows:
+            msg += f"{i}. User {u['user_id']} — {u['referrals']}\n"
             i += 1
 
         await message.reply(msg)
