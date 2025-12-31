@@ -174,7 +174,7 @@ async def menu(_, message):
         rows = users.find().sort("referrals", -1).limit(30)
         msg = "🏆 TOP LEADERBOARD\n\n"
         for i, u in enumerate(rows, start=1):
-            msg += f"{i}. {u.get('name','User')} — {u.get('referrals',0)}\n"
+            msg += f"{i}. {u.get['user_id']} — {u.get('referrals',0)}\n"
         await message.reply(msg)
 
     elif text == "📜 Rules":
