@@ -85,17 +85,6 @@ async def start(client, message):
     uid = message.from_user.id
     args = message.command
 
-    loading = await message.reply("⏳ Loading...")
-
-    async def delete_loading():
-        await asyncio.sleep(10)
-        try:
-            await loading.delete()
-        except:
-            pass
-
-    asyncio.create_task(delete_loading())
-
     user = users.find_one({"user_id": uid})
 
     ref_id = 0
@@ -121,7 +110,7 @@ async def start(client, message):
     # 🔒 FORCE SUB
     if not await is_joined(uid):
         await message.reply(
-            "⚠️ Pehle dono channels join karo.\nJoin ke baad Joined button dabao.",
+            "⚠️ Pehle dono channels join karo.\nJoin ke baad **Joined** button dabao.",
             reply_markup=force_buttons()
         )
         return
@@ -131,13 +120,10 @@ async def start(client, message):
         {"$set": {"joined_confirmed": 1, "name": name}}
     )
 
-    await message.reply_photo(
-        photo="start.png",
-        caption=(
-            "🔥 *Referral Tournament Live!* 🔥\n\n"
-            "👥 Refer friends & win rewards\n"
-            "👇 Options niche diye gaye hain"
-        ),
+    await message.reply(
+        "🔥 *Referral Tournament Live!* 🔥\n\n"
+        "👥 Refer friends & win rewards\n"
+        "👇 Options niche diye gaye hain",
         reply_markup=main_menu()
     )
 
@@ -150,13 +136,12 @@ async def joined(client, query):
         await query.answer("❌ Abhi dono channels join nahi hue", show_alert=True)
         return
 
-    # delete force-sub message
     try:
         await query.message.delete()
     except:
         pass
 
-    # 🔥 AUTO /start TRIGGER
+    # 🔥 AUTO /start
     fake_message = query.message
     fake_message.from_user = query.from_user
     fake_message.command = ["start"]
