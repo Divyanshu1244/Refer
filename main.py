@@ -32,31 +32,24 @@ mongo = MongoClient(MONGO_URL)
 db = mongo["referralbot"]
 users = db["users"]
 
+# ================= MENU =================
 def main_menu():
     return ReplyKeyboardMarkup(
         [
-            [
-                KeyboardButton("🔗 My referrals"),
-                KeyboardButton("📢 Updates")
-            ],
-            [
-                KeyboardButton("📜 Rules"),
-                KeyboardButton("🆘 Support")
-            ],
-            [
-                KeyboardButton("📊 Leaderboard")
-            ]
+            [KeyboardButton("🔗 My referrals"), KeyboardButton("📢 Updates")],
+            [KeyboardButton("📜 Rules"), KeyboardButton("🆘 Support")],
+            [KeyboardButton("📊 Leaderboard")]
         ],
         resize_keyboard=True
     )
 
-# ================= FORCE JOIN CHECK =================
+# ================= FORCE JOIN =================
 async def is_joined(user_id):
     try:
+        ok = (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER)
         m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
         m2 = await app.get_chat_member(FORCE_CHANNEL_2, user_id)
-        ok = (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER)
-        return (m1.status in ok) and (m2.status in ok)
+        return m1.status in ok and m2.status in ok
     except:
         return False
 
@@ -69,22 +62,13 @@ def force_buttons():
         ]
     )
 
-# ================= START =================
-@app.on_message(filters.command("start") & filters.private)
-async def start(_, message):
+# ================= START HANDLER =================
+async def start_handler(client, message):
     uid = message.from_user.id
-    args = message.command
+    args = message.command if hasattr(message, "command") else []
 
     loading = await message.reply("⏳ Loading...")
-
-    async def delete_loading():
-        await asyncio.sleep(10)
-        try:
-            await loading.delete()
-        except:
-            pass
-
-    asyncio.create_task(delete_loading())
+    asyncio.create_task(delete_later(loading, 5))
 
     user = users.find_one({"user_id": uid})
 
@@ -97,7 +81,6 @@ async def start(_, message):
         except:
             ref_id = 0
 
-    # ⭐ save name also (for leaderboard)
     name = message.from_user.first_name or "User"
 
     if not user:
@@ -109,7 +92,6 @@ async def start(_, message):
             "joined_confirmed": 0
         })
 
-    # ⭐ FULL FORCE LOCK (no access until joined)
     if not await is_joined(uid):
         await message.reply(
             "⚠️ Pehle dono channels join karo.\nJoin ke baad Joined button dabao.",
@@ -132,9 +114,22 @@ async def start(_, message):
         reply_markup=main_menu()
     )
 
+# helper
+async def delete_later(msg, sec):
+    await asyncio.sleep(sec)
+    try:
+        await msg.delete()
+    except:
+        pass
+
+# ================= /START =================
+@app.on_message(filters.command("start") & filters.private)
+async def start_cmd(client, message):
+    await start_handler(client, message)
+
 # ================= JOINED BUTTON =================
 @app.on_callback_query(filters.regex("^joined$"))
-async def joined(_, query):
+async def joined(client, query):
     uid = query.from_user.id
 
     if not await is_joined(uid):
@@ -150,18 +145,21 @@ async def joined(_, query):
                 {"$inc": {"referrals": 1}}
             )
 
-    await query.message.edit_text(
-        "✅ Thanks! Tum dono channels join kar chuke ho.\n\nChoose option below 👇",
-        reply_markup=main_menu()
-    )
+    try:
+        await query.message.delete()
+    except:
+        pass
 
-# ================= MENU =================
+    fake = query.message
+    fake.command = ["start"]
+    await start_handler(client, fake)
+
+# ================= MENU HANDLER =================
 @app.on_message(filters.text & filters.private & ~filters.regex("^/"))
-async def menu(_, message):
+async def menu(client, message):
     uid = message.from_user.id
     text = message.text
 
-    # ⭐ every message locked until joined
     if not await is_joined(uid):
         await message.reply(
             "⚠️ Pehle dono channels join karo.\nJoin ke baad Joined button dabao.",
@@ -170,43 +168,20 @@ async def menu(_, message):
         return
 
     if text == "🔗 My referrals":
-        me = await app.get_me()
+        me = await client.get_me()
         link = f"https://t.me/{me.username}?start={uid}"
-        user = users.find_one({"user_id": uid})
-        count = user.get("referrals", 0) if user else 0
-        await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}")
+        u = users.find_one({"user_id": uid})
+        await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {u.get('referrals',0)}")
 
     elif text == "📊 Leaderboard":
         rows = users.find().sort("referrals", -1).limit(30)
         msg = "🏆 TOP LEADERBOARD\n\n"
-
-        for i, u in enumerate(rows, start=1):
-            name = u.get("name")
-
-            # if name missing — fetch from Telegram & save
-            if not name:
-                try:
-                    user_obj = await app.get_users(u["user_id"])
-                    name = user_obj.first_name or "User"
-                    users.update_one(
-                        {"user_id": u["user_id"]},
-                        {"$set": {"name": name}}
-                    )
-                except:
-                    name = "User"
-
-            msg += f"{i}. {name} — {u.get('referrals', 0)}\n"
-
+        for i, u in enumerate(rows, 1):
+            msg += f"{i}. {u.get('name','User')} — {u.get('referrals',0)}\n"
         await message.reply(msg)
 
     elif text == "📜 Rules":
-        await message.reply(
-            "📜 RULES\n\n"
-            "• Fake accounts not allowed\n"
-            "• Force join mandatory\n"
-            "• One user = one account\n"
-            "• Final decision by system"
-        )
+        await message.reply("📜 RULES\n\n• Fake accounts not allowed\n• Force join mandatory\n• One user = one account")
 
     elif text == "📢 Updates":
         await message.reply(f"📢 Updates: {UPDATE_CHANNEL}")
@@ -214,32 +189,11 @@ async def menu(_, message):
     elif text == "🆘 Support":
         await message.reply(f"🆘 Support: {SUPPORT_ID}")
 
-# ================= ADMIN COMMANDS =================
+# ================= ADMIN =================
 @app.on_message(filters.command("total") & filters.private)
 async def total(_, message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
-    await message.reply(f"👥 Total Users: {users.count_documents({})}")
+    if message.from_user.id in ADMIN_IDS:
+        await message.reply(f"👥 Total Users: {users.count_documents({})}")
 
-@app.on_message(filters.command("broadcast") & filters.private)
-async def broadcast(_, message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    if not message.reply_to_message:
-        await message.reply("❌ Kisi message ko reply karke /broadcast likho")
-        return
-
-    sent, failed = 0, 0
-    for u in users.find({}, {"user_id": 1}):
-        try:
-            await message.reply_to_message.copy(u["user_id"])
-            sent += 1
-            await asyncio.sleep(0.05)
-        except:
-            failed += 1
-
-    await message.reply(f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}")
-
-print("🤖 Sanju i love you")
+print("🤖 Bot Started Successfully")
 app.run()
