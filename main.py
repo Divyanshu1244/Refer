@@ -176,16 +176,28 @@ async def menu(_, message):
         count = user.get("referrals", 0) if user else 0
         await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}")
 
-    elif text == "📊 Leaderboard":
-        rows = users.find().sort("referrals", -1).limit(30)
-        msg = "🏆 TOP LEADERBOARD\n\n"
+   elif text == "📊 Leaderboard":
+    rows = users.find().sort("referrals", -1).limit(30)
+    msg = "🏆 TOP LEADERBOARD\n\n"
 
-        # ⭐ show names instead of IDs
-        for i, u in enumerate(rows, start=1):
-            name = u.get("name", f"User {u['user_id']}")
-            msg += f"{i}. {name} — {u.get('referrals', 0)}\n"
+    for i, u in enumerate(rows, start=1):
+        name = u.get("name")
 
-        await message.reply(msg)
+        # if name missing — fetch from Telegram & save
+        if not name:
+            try:
+                user_obj = await app.get_users(u["user_id"])
+                name = user_obj.first_name or "User"
+                users.update_one(
+                    {"user_id": u["user_id"]},
+                    {"$set": {"name": name}}
+                )
+            except:
+                name = "User"
+
+        msg += f"{i}. {name} — {u.get('referrals', 0)}\n"
+
+    await message.reply(msg)
 
     elif text == "📜 Rules":
         await message.reply(
