@@ -171,10 +171,10 @@ async def menu(_, message):
         )
 
     elif text == "📊 Leaderboard":
-    rows = users.find().sort("referrals", -1).limit(30)
-    msg = "🏆 TOP LEADERBOARD\n\n"
-
-    for i, u in enumerate(rows, start=1):
+        rows = users.find().sort("referrals", -1).limit(30)
+        msg = "🏆 TOP LEADERBOARD\n\n"
+        
+        for i, u in enumerate(rows, start=1):
         name = u.get("name", "User")
 
         # 🔹 FIXED WIDTH NAME (10 chars)
