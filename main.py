@@ -171,31 +171,10 @@ async def menu(_, message):
         )
 
     elif text == "📊 Leaderboard":
-        rows = users.find({"banned": {"$ne": 1}}).sort("referrals", -1).limit(95)
-        msg = "🏆 LIVE LEADERBOARD (TOP 95)\n\n"
-        
+        rows = users.find().sort("referrals", -1).limit(95)
+        msg = "🏆 TOP LEADERBOARD\n\n"
         for i, u in enumerate(rows, start=1):
-        # prize only for top 30
-            if i == 1:
-            prize = "30k"
-            elif i == 2:
-            prize = "23k"
-            elif i == 3:
-            prize = "15k"
-            elif i in (4, 5):
-            prize = "8k"
-            elif 6 <= i <= 15:
-            prize = "5k"
-            elif 16 <= i <= 30:
-            prize = "3k"
-            else:
-            prize = "—"
-
-            uid = u["user_id"]
-            refs = u.get("referrals", 0)
-
-            msg += f"{i}. {uid} — {refs}     | {prize}\n"
-
+            msg += f"{i}. {u.get('user_id')} — {u.get('referrals',0)}\n"  # Fixed: u.get('user_id')
         await message.reply(msg)
 
     elif text == "📜 Rules":
