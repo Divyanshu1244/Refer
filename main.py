@@ -1,5 +1,6 @@
 import os
 import asyncio
+import re
 from pymongo import MongoClient
 from pyrogram import Client, filters
 from pyrogram.types import (
@@ -107,7 +108,6 @@ async def start(client, message):
             "joined_confirmed": 0
         })
 
-    # 🔒 FORCE SUB
     if not await is_joined(uid):
         await message.reply(
             "⚠️ Pehle dono channels join karo.\nJoin ke baad **Joined** button dabao.",
@@ -127,7 +127,7 @@ async def start(client, message):
         reply_markup=main_menu()
     )
 
-# ================= JOINED CALLBACK (AUTO /START) =================
+# ================= JOINED CALLBACK =================
 @app.on_callback_query(filters.regex("^joined$"))
 async def joined(client, query):
     uid = query.from_user.id
@@ -141,7 +141,6 @@ async def joined(client, query):
     except:
         pass
 
-    # 🔥 AUTO /start
     fake_message = query.message
     fake_message.from_user = query.from_user
     fake_message.command = ["start"]
@@ -173,20 +172,25 @@ async def menu(_, message):
     elif text == "📊 Leaderboard":
         rows = users.find().sort("referrals", -1).limit(30)
         msg = "🏆 TOP LEADERBOARD\n\n"
-        
+
         for i, u in enumerate(rows, start=1):
-            name = u.get("name", "User")
+            raw_name = u.get("name", "User")
 
-            # 🔹 FIXED WIDTH NAME (10 chars)
-            if len(name) > 10:
-                name = name[:9] + "…"
+            # 🔹 SANITIZE NAME (remove emoji / fancy unicode)
+            clean_name = re.sub(r"[^\w\s]", "", raw_name).strip()
+            if not clean_name:
+                clean_name = "User"
+
+            # 🔹 FIXED WIDTH (10 chars)
+            if len(clean_name) > 10:
+                clean_name = clean_name[:9] + "…"
             else:
-                name = name.ljust(10)
+                clean_name = clean_name.ljust(10)
 
-            uid = str(u["user_id"])
-            masked_id = "****" + uid[-4:]
+            uid_str = str(u["user_id"])
+            masked_id = "****" + uid_str[-4:]
 
-            msg += f"{i}. {name} | {masked_id} — {u.get('referrals',0)}\n"
+            msg += f"{i}. {clean_name} | {masked_id} — {u.get('referrals', 0)}\n"
 
         await message.reply(msg)
 
