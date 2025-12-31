@@ -171,7 +171,7 @@ async def menu(_, message):
         )
 
     elif text == "📊 Leaderboard":
-        rows = users.find().sort("referrals", -1).limit(100)
+        rows = users.find().sort("referrals", -1).limit(95)
         msg = "🏆 TOP LEADERBOARD\n\n"
         for i, u in enumerate(rows, start=1):
             msg += f"{i}. {u.get('user_id')} — {u.get('referrals',0)}\n"  # Fixed: u.get('user_id')
