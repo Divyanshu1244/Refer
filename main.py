@@ -25,14 +25,12 @@ logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 ref_logger = logging.getLogger("REFERRAL")
 ref_logger.setLevel(logging.INFO)
-# ========================================
 
 # ================= CONFIG =================
-BOT_TOKEN = os.getenv("BOT_TOKEN") or "PASTE_BOT_TOKEN"
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "YOUR_BOT_TOKEN"
 API_ID = int(os.getenv("API_ID") or 123456)
-API_HASH = os.getenv("API_HASH") or "PASTE_API_HASH"
-
-MONGO_URL = os.getenv("MONGO_URL") or "PASTE_MONGO_URL"
+API_HASH = os.getenv("API_HASH") or "YOUR_API_HASH"
+MONGO_URL = os.getenv("MONGO_URL") or "YOUR_MONGO_URL"
 
 FORCE_CHANNEL_1 = "@payalgamingviralvideo123"
 FORCE_CHANNEL_2 = "@payalgamingviralvideo123"
@@ -41,7 +39,6 @@ SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "@YourUpdateChannel"
 
 ADMIN_IDS = [6335046711]
-# ========================================
 
 # ================= BOT ====================
 app = Client(
@@ -67,7 +64,7 @@ def main_menu():
         resize_keyboard=True
     )
 
-# ================= FORCE JOIN =============
+# ================= FORCE JOIN =================
 async def is_joined(user_id):
     try:
         ok = (
@@ -90,15 +87,7 @@ def force_buttons():
         ]
     )
 
-# ================= HELPERS ================
-async def delete_later(msg, sec):
-    await asyncio.sleep(sec)
-    try:
-        await msg.delete()
-    except:
-        pass
-
-# ================= START ==================
+# ================= START =================
 @app.on_message(filters.command("start") & filters.private)
 async def start_cmd(client, message):
     uid = message.from_user.id
@@ -137,9 +126,8 @@ async def start_cmd(client, message):
         {"$set": {"joined_confirmed": 1}}
     )
 
-    await message.reply_photo(
-        photo="start.png",
-        caption="🔥 Referral Tournament Live 🔥",
+    await message.reply(
+        "🔥 Referral Tournament Live 🔥",
         reply_markup=main_menu()
     )
 
@@ -168,14 +156,14 @@ async def joined(client, query):
     await query.message.delete()
     await start_cmd(client, query.message)
 
-# ================= MENU ===================
-@app.on_message(filters.text & filters.private & ~filters.command)
+# ================= MENU =================
+@app.on_message(filters.text & filters.private & ~filters.regex("^/"))
 async def menu(client, message):
     uid = message.from_user.id
     text = message.text
     u = users.find_one({"user_id": uid})
 
-    if u.get("banned") == 1:
+    if not u or u.get("banned") == 1:
         return
 
     if text == "🔗 My referrals":
@@ -196,12 +184,12 @@ async def menu(client, message):
         await message.reply("• Fake accounts not allowed\n• Force join mandatory")
 
     elif text == "📢 Updates":
-        await message.reply(f"📢 {UPDATE_CHANNEL}")
+        await message.reply(f"{UPDATE_CHANNEL}")
 
     elif text == "🆘 Support":
-        await message.reply(f"🆘 {SUPPORT_ID}")
+        await message.reply(f"{SUPPORT_ID}")
 
-# ================= BROADCAST ==============
+# ================= BROADCAST =================
 @app.on_message(filters.command("broadcast") & filters.private)
 async def broadcast_start(client, message):
     if message.from_user.id not in ADMIN_IDS:
@@ -209,23 +197,22 @@ async def broadcast_start(client, message):
     BROADCAST_MODE[message.from_user.id] = True
     await message.reply("📢 Send message to broadcast")
 
-@app.on_message(filters.private & ~filters.command)
+@app.on_message(filters.private & ~filters.regex("^/"))
 async def broadcast_sender(client, message):
     uid = message.from_user.id
 
     if uid not in ADMIN_IDS:
         return
-    if BROADCAST_MODE.get(uid) is not True:
+    if not BROADCAST_MODE.get(uid):
         return
 
     BROADCAST_MODE.pop(uid, None)
 
     sent = 0
     failed = 0
-
     await message.reply("🚀 Broadcasting...")
 
-    async for u in users.find({}, {"user_id": 1}):
+    for u in users.find({}, {"user_id": 1}):
         try:
             await message.copy(u["user_id"])
             sent += 1
@@ -233,19 +220,13 @@ async def broadcast_sender(client, message):
         except:
             failed += 1
 
-    await message.reply(f"✅ Done\nSent: {sent}\nFailed: {failed}")
+    await message.reply(f"✅ Broadcast Done\n\nSent: {sent}\nFailed: {failed}")
 
-# ================= ADMIN ==================
+# ================= ADMIN =================
 @app.on_message(filters.command("total") & filters.private)
 async def total(_, message):
     if message.from_user.id in ADMIN_IDS:
         await message.reply(f"👥 Total Users: {users.count_documents({})}")
-
-@app.on_message(filters.command("resetlb") & filters.private)
-async def reset_lb(_, message):
-    if message.from_user.id in ADMIN_IDS:
-        users.update_many({}, {"$set": {"referrals": 0}})
-        await message.reply("✅ Leaderboard reset")
 
 # ================= RUN ====================
 print("🤖 Bot Started Successfully")
