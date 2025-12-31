@@ -32,6 +32,7 @@ mongo = MongoClient(MONGO_URL)
 db = mongo["referralbot"]
 users = db["users"]
 
+# ================= MAIN MENU =================
 def main_menu():
     return ReplyKeyboardMarkup(
         [
@@ -97,7 +98,6 @@ async def start(_, message):
         except:
             ref_id = 0
 
-    # ⭐ save name also (for leaderboard)
     name = message.from_user.first_name or "User"
 
     if not user:
@@ -109,7 +109,7 @@ async def start(_, message):
             "joined_confirmed": 0
         })
 
-    # ⭐ FULL FORCE LOCK (no access until joined)
+    # 🔒 FORCE LOCK
     if not await is_joined(uid):
         await message.reply(
             "⚠️ Pehle dono channels join karo.\nJoin ke baad Joined button dabao.",
@@ -132,7 +132,7 @@ async def start(_, message):
         reply_markup=main_menu()
     )
 
-# ================= JOINED BUTTON =================
+# ================= JOINED CALLBACK =================
 @app.on_callback_query(filters.regex("^joined$"))
 async def joined(_, query):
     uid = query.from_user.id
@@ -150,7 +150,9 @@ async def joined(_, query):
                 {"$inc": {"referrals": 1}}
             )
 
-    await query.message.edit_text(
+    # ✅ ONLY CHANGE: delete + fresh menu
+    await query.message.delete()
+    await query.message.chat.send_message(
         "✅ Thanks! Tum dono channels join kar chuke ho.\n\nChoose option below 👇",
         reply_markup=main_menu()
     )
@@ -161,7 +163,6 @@ async def menu(_, message):
     uid = message.from_user.id
     text = message.text
 
-    # ⭐ every message locked until joined
     if not await is_joined(uid):
         await message.reply(
             "⚠️ Pehle dono channels join karo.\nJoin ke baad Joined button dabao.",
@@ -179,24 +180,9 @@ async def menu(_, message):
     elif text == "📊 Leaderboard":
         rows = users.find().sort("referrals", -1).limit(30)
         msg = "🏆 TOP LEADERBOARD\n\n"
-
         for i, u in enumerate(rows, start=1):
-            name = u.get("name")
-
-            # if name missing — fetch from Telegram & save
-            if not name:
-                try:
-                    user_obj = await app.get_users(u["user_id"])
-                    name = user_obj.first_name or "User"
-                    users.update_one(
-                        {"user_id": u["user_id"]},
-                        {"$set": {"name": name}}
-                    )
-                except:
-                    name = "User"
-
+            name = u.get("name", "User")
             msg += f"{i}. {name} — {u.get('referrals', 0)}\n"
-
         await message.reply(msg)
 
     elif text == "📜 Rules":
@@ -214,7 +200,7 @@ async def menu(_, message):
     elif text == "🆘 Support":
         await message.reply(f"🆘 Support: {SUPPORT_ID}")
 
-# ================= ADMIN COMMANDS =================
+# ================= ADMIN =================
 @app.on_message(filters.command("total") & filters.private)
 async def total(_, message):
     if message.from_user.id not in ADMIN_IDS:
