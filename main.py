@@ -11,7 +11,7 @@ from pyrogram.types import (
     InlineKeyboardButton
 )
 from pyrogram.enums import ChatMemberStatus
-
+BROADCAST_MODE = {}
 # ================= LOGGER (PROPER) =================
 
 logging.basicConfig(
@@ -248,8 +248,45 @@ async def menu(client, message):
     elif text == "🆘 Support":
         await message.reply(f"🆘 Support: {SUPPORT_ID}")
 
-# ================= ADMIN =================
+@app.on_message(filters.private)
+async def broadcast_sender(client, message):
+    uid = message.from_user.id
 
+    if uid not in BROADCAST_MODE:
+        return
+    if BROADCAST_MODE.get(uid) is not True:
+        return
+    if uid not in ADMIN_IDS:
+        return
+
+    BROADCAST_MODE.pop(uid, None)
+
+    sent = 0
+    failed = 0
+
+    await message.reply("🚀 Broadcast started...")
+
+    async for u in users.find({}, {"user_id": 1}):
+        try:
+            await message.copy(u["user_id"])
+            sent += 1
+            await asyncio.sleep(0.5)
+        except:
+            failed += 1
+
+    await message.reply(
+        f"📢 Broadcast Completed\n\n✅ Sent: {sent}\n❌ Failed: {failed}"
+    )
+    
+# ================= ADMIN =================
+@app.on_message(filters.command("broadcast") & filters.private)
+async def broadcast_start(client, message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    BROADCAST_MODE[message.from_user.id] = True
+    await message.reply("📢 Send message to broadcast (text / photo / video / file)")
+    
 @app.on_message(filters.command("total") & filters.private)
 async def total(_, message):
     if message.from_user.id in ADMIN_IDS:
