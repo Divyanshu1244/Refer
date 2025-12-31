@@ -107,7 +107,6 @@ async def start(client, message):
             "joined_confirmed": 0
         })
 
-    # 🔒 FORCE SUB
     if not await is_joined(uid):
         await message.reply(
             "⚠️ Pehle dono channels join karo.\nJoin ke baad **Joined** button dabao.",
@@ -121,18 +120,16 @@ async def start(client, message):
     )
 
     await message.reply(
-        "🔥 *Referral Tournament Live!* 🔥\n\n"
+        "🔥 Referral Tournament Live!\n\n"
         "👥 Refer friends & win rewards\n"
         "👇 Options niche diye gaye hain",
         reply_markup=main_menu()
     )
 
-# ================= JOINED CALLBACK (AUTO /START) =================
+# ================= JOINED CALLBACK =================
 @app.on_callback_query(filters.regex("^joined$"))
 async def joined(client, query):
-    uid = query.from_user.id
-
-    if not await is_joined(uid):
+    if not await is_joined(query.from_user.id):
         await query.answer("❌ Abhi dono channels join nahi hue", show_alert=True)
         return
 
@@ -141,7 +138,6 @@ async def joined(client, query):
     except:
         pass
 
-    # 🔥 AUTO /start
     fake_message = query.message
     fake_message.from_user = query.from_user
     fake_message.command = ["start"]
@@ -166,15 +162,30 @@ async def menu(_, message):
         link = f"https://t.me/{me.username}?start={uid}"
         user = users.find_one({"user_id": uid})
         count = user.get("referrals", 0) if user else 0
-        await message.reply(
-            f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}"
-        )
+        await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}")
 
     elif text == "📊 Leaderboard":
         rows = users.find().sort("referrals", -1).limit(95)
         msg = "🏆 TOP LEADERBOARD\n\n"
+
         for i, u in enumerate(rows, start=1):
-            msg += f"{i}. {u.get('user_id')} — {u.get('referrals',0)}\n"  # Fixed: u.get('user_id')
+            if i == 1:
+                prize = "30k"
+            elif i == 2:
+                prize = "23k"
+            elif i == 3:
+                prize = "15k"
+            elif i in (4, 5):
+                prize = "8k"
+            elif 6 <= i <= 15:
+                prize = "5k"
+            elif 16 <= i <= 30:
+                prize = "3k"
+            else:
+                prize = "—"
+
+            msg += f"{i}. {u['user_id']} — {u.get('referrals',0)}     | {prize}\n"
+
         await message.reply(msg)
 
     elif text == "📜 Rules":
@@ -217,9 +228,7 @@ async def broadcast(_, message):
         except:
             failed += 1
 
-    await message.reply(
-        f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}"
-    )
+    await message.reply(f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}")
 
-print("🤖 Sanju i love you")
+print("🤖 Bot Started Successfully")
 app.run()
