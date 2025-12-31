@@ -2,7 +2,12 @@ import os
 import asyncio
 from pymongo import MongoClient
 from pyrogram import Client, filters
-from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import (
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
+)
 from pyrogram.enums import ChatMemberStatus
 
 # ================= CONFIG =================
@@ -56,7 +61,11 @@ async def is_joined(user_id):
     try:
         m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
         m2 = await app.get_chat_member(FORCE_CHANNEL_2, user_id)
-        ok = (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER)
+        ok = (
+            ChatMemberStatus.MEMBER,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.OWNER
+        )
         return (m1.status in ok) and (m2.status in ok)
     except:
         return False
@@ -72,7 +81,7 @@ def force_buttons():
 
 # ================= START =================
 @app.on_message(filters.command("start") & filters.private)
-async def start(_, message):
+async def start(client, message):
     uid = message.from_user.id
     args = message.command
 
@@ -109,7 +118,7 @@ async def start(_, message):
             "joined_confirmed": 0
         })
 
-    # 🔒 FORCE LOCK
+    # 🔒 FORCE SUB
     if not await is_joined(uid):
         await message.reply(
             "⚠️ Pehle dono channels join karo.\nJoin ke baad Joined button dabao.",
@@ -132,30 +141,27 @@ async def start(_, message):
         reply_markup=main_menu()
     )
 
-# ================= JOINED CALLBACK =================
+# ================= JOINED CALLBACK (AUTO /START) =================
 @app.on_callback_query(filters.regex("^joined$"))
-async def joined(_, query):
+async def joined(client, query):
     uid = query.from_user.id
 
     if not await is_joined(uid):
         await query.answer("❌ Abhi dono channels join nahi hue", show_alert=True)
         return
 
-    user = users.find_one({"user_id": uid})
-    if user and user.get("joined_confirmed", 0) == 0:
-        users.update_one({"user_id": uid}, {"$set": {"joined_confirmed": 1}})
-        if user.get("referred_by", 0):
-            users.update_one(
-                {"user_id": user["referred_by"]},
-                {"$inc": {"referrals": 1}}
-            )
+    # delete force-sub message
+    try:
+        await query.message.delete()
+    except:
+        pass
 
-    # ✅ ONLY CHANGE: delete + fresh menu
-    await query.message.delete()
-    await query.message.chat.send_message(
-        "✅ Thanks! Tum dono channels join kar chuke ho.\n\nChoose option below 👇",
-        reply_markup=main_menu()
-    )
+    # 🔥 AUTO /start TRIGGER
+    fake_message = query.message
+    fake_message.from_user = query.from_user
+    fake_message.command = ["start"]
+
+    await start(client, fake_message)
 
 # ================= MENU =================
 @app.on_message(filters.text & filters.private & ~filters.regex("^/"))
@@ -175,14 +181,15 @@ async def menu(_, message):
         link = f"https://t.me/{me.username}?start={uid}"
         user = users.find_one({"user_id": uid})
         count = user.get("referrals", 0) if user else 0
-        await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}")
+        await message.reply(
+            f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}"
+        )
 
     elif text == "📊 Leaderboard":
         rows = users.find().sort("referrals", -1).limit(30)
         msg = "🏆 TOP LEADERBOARD\n\n"
         for i, u in enumerate(rows, start=1):
-            name = u.get("name", "User")
-            msg += f"{i}. {name} — {u.get('referrals', 0)}\n"
+            msg += f"{i}. {u.get('name','User')} — {u.get('referrals',0)}\n"
         await message.reply(msg)
 
     elif text == "📜 Rules":
@@ -225,7 +232,9 @@ async def broadcast(_, message):
         except:
             failed += 1
 
-    await message.reply(f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}")
+    await message.reply(
+        f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}"
+    )
 
 print("🤖 Sanju i love you")
 app.run()
