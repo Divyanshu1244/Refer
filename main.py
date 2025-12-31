@@ -176,8 +176,8 @@ async def menu(_, message):
         for i, u in enumerate(rows, start=1):
             uid = str(u["user_id"])
             msg += f"{i}. {uid} — {u.get('referrals', 0)}\n"
-
-    await message.reply(msg)
+            
+            await message.reply(msg)
 
     elif text == "📜 Rules":
         await message.reply(
