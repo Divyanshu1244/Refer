@@ -11,33 +11,28 @@ from pyrogram.types import (
     InlineKeyboardButton
 )
 from pyrogram.enums import ChatMemberStatus
-BROADCAST_MODE = {}
-# ================= LOGGER (PROPER) =================
 
+# ================= GLOBAL =================
+BROADCAST_MODE = {}
+
+# ================= LOGGER =================
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout)  # Railway / Docker friendly
-    ]
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
-
-# 🔇 Pyrogram spam kam
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
-# ✅ Referral logger
 ref_logger = logging.getLogger("REFERRAL")
 ref_logger.setLevel(logging.INFO)
-
-# ==================================================
+# ========================================
 
 # ================= CONFIG =================
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "PASTE_BOT_TOKEN"
+API_ID = int(os.getenv("API_ID") or 123456)
+API_HASH = os.getenv("API_HASH") or "PASTE_API_HASH"
 
-BOT_TOKEN = os.getenv("BOT_TOKEN") or "8231560346:AAEYH6--lmZyOc3vyb2ju-tPkhDJf05rrvU"
-API_ID = int(os.getenv("API_ID") or 36030323)
-API_HASH = os.getenv("API_HASH") or "1d8fc7e8552f7141d5071f184af921e7"
-
-MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
+MONGO_URL = os.getenv("MONGO_URL") or "PASTE_MONGO_URL"
 
 FORCE_CHANNEL_1 = "@payalgamingviralvideo123"
 FORCE_CHANNEL_2 = "@payalgamingviralvideo123"
@@ -46,11 +41,9 @@ SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "@YourUpdateChannel"
 
 ADMIN_IDS = [6335046711]
+# ========================================
 
-# ==========================================
-
-# ================= BOT =================
-
+# ================= BOT ====================
 app = Client(
     "referral_bot",
     api_id=API_ID,
@@ -58,14 +51,12 @@ app = Client(
     bot_token=BOT_TOKEN
 )
 
-# ================= DATABASE =================
-
+# ================= DATABASE ===============
 mongo = MongoClient(MONGO_URL)
 db = mongo["referralbot"]
 users = db["users"]
 
-# ================= MENU =================
-
+# ================= MENU ===================
 def main_menu():
     return ReplyKeyboardMarkup(
         [
@@ -76,8 +67,7 @@ def main_menu():
         resize_keyboard=True
     )
 
-# ================= FORCE JOIN =================
-
+# ================= FORCE JOIN =============
 async def is_joined(user_id):
     try:
         ok = (
@@ -100,14 +90,19 @@ def force_buttons():
         ]
     )
 
-# ================= START HANDLER =================
+# ================= HELPERS ================
+async def delete_later(msg, sec):
+    await asyncio.sleep(sec)
+    try:
+        await msg.delete()
+    except:
+        pass
 
-async def start_handler(client, message):
+# ================= START ==================
+@app.on_message(filters.command("start") & filters.private)
+async def start_cmd(client, message):
     uid = message.from_user.id
-    args = message.command if hasattr(message, "command") else []
-
-    loading = await message.reply("⏳ Loading...")
-    asyncio.create_task(delete_later(loading, 5))
+    args = message.command
 
     user = users.find_one({"user_id": uid})
 
@@ -120,143 +115,107 @@ async def start_handler(client, message):
         except:
             ref_id = 0
 
-    name = message.from_user.first_name or "User"
-
     if not user:
         users.insert_one({
             "user_id": uid,
-            "name": name,
+            "name": message.from_user.first_name or "User",
             "referred_by": ref_id,
             "referrals": 0,
-            "joined_confirmed": 0
+            "joined_confirmed": 0,
+            "banned": 0
         })
 
     if not await is_joined(uid):
         await message.reply(
-            "⚠️ Pehle dono channels join karo.\nJoin ke baad Joined button dabao.",
+            "⚠️ Pehle dono channels join karo",
             reply_markup=force_buttons()
         )
         return
 
     users.update_one(
         {"user_id": uid},
-        {"$set": {"joined_confirmed": 1, "name": name}}
+        {"$set": {"joined_confirmed": 1}}
     )
 
     await message.reply_photo(
         photo="start.png",
-        caption=(
-            "🔥 *Referral Tournament Live!* 🔥\n\n"
-            "👥 Refer friends & win rewards\n"
-            "👇 Options niche diye gaye hain"
-        ),
+        caption="🔥 Referral Tournament Live 🔥",
         reply_markup=main_menu()
     )
 
-# ================= HELPER =================
-
-async def delete_later(msg, sec):
-    await asyncio.sleep(sec)
-    try:
-        await msg.delete()
-    except:
-        pass
-
-# ================= /START =================
-
-@app.on_message(filters.command("start") & filters.private)
-async def start_cmd(client, message):
-    await start_handler(client, message)
-
-# ================= JOINED BUTTON =================
-
+# ================= JOINED =================
 @app.on_callback_query(filters.regex("^joined$"))
 async def joined(client, query):
     uid = query.from_user.id
 
     if not await is_joined(uid):
-        await query.answer("❌ Abhi dono channels join nahi hue", show_alert=True)
+        await query.answer("❌ Abhi join nahi hua", show_alert=True)
         return
 
     user = users.find_one({"user_id": uid})
+    if not user or user.get("joined_confirmed") == 1:
+        return
 
-    if user and user.get("joined_confirmed", 0) == 0:
+    users.update_one({"user_id": uid}, {"$set": {"joined_confirmed": 1}})
+
+    if user.get("referred_by"):
         users.update_one(
-            {"user_id": uid},
-            {"$set": {"joined_confirmed": 1}}
+            {"user_id": user["referred_by"]},
+            {"$inc": {"referrals": 1}}
         )
+        ref_logger.info(f"REF | {user['referred_by']} <- {uid}")
 
-        if user.get("referred_by", 0):
-            referrer = user["referred_by"]
+    await query.message.delete()
+    await start_cmd(client, query.message)
 
-            users.update_one(
-                {"user_id": referrer},
-                {"$inc": {"referrals": 1}}
-            )
-
-            # ✅ CLEAN REFERRAL LOG
-            ref_logger.info(
-                f"REF | {referrer} <- {uid} | Total +1"
-            )
-
-    try:
-        await query.message.delete()
-    except:
-        pass
-
-    fake = query.message
-    fake.command = ["start"]
-    await start_handler(client, fake)
-
-# ================= MENU HANDLER =================
-
-@app.on_message(filters.text & filters.private & ~filters.regex("^/"))
+# ================= MENU ===================
+@app.on_message(filters.text & filters.private & ~filters.command)
 async def menu(client, message):
     uid = message.from_user.id
     text = message.text
+    u = users.find_one({"user_id": uid})
 
-    if not await is_joined(uid):
-        await message.reply(
-            "⚠️ Pehle dono channels join karo.\nJoin ke baad Joined button dabao.",
-            reply_markup=force_buttons()
-        )
+    if u.get("banned") == 1:
         return
 
     if text == "🔗 My referrals":
         me = await client.get_me()
         link = f"https://t.me/{me.username}?start={uid}"
-        u = users.find_one({"user_id": uid})
         await message.reply(
-            f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {u.get('referrals', 0)}"
+            f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {u.get('referrals',0)}"
         )
 
     elif text == "📊 Leaderboard":
-        rows = users.find().sort("referrals", -1).limit(30)
+        rows = users.find({"banned": 0}).sort("referrals", -1).limit(30)
         msg = "🏆 TOP LEADERBOARD\n\n"
-        for i, u in enumerate(rows, 1):
-            msg += f"{i}. {u.get('name','User')} — {u.get('referrals',0)}\n"
+        for i, x in enumerate(rows, 1):
+            msg += f"{i}. {x.get('name')} — {x.get('referrals')}\n"
         await message.reply(msg)
 
     elif text == "📜 Rules":
-        await message.reply(
-            "📜 RULES\n\n• Fake accounts not allowed\n• Force join mandatory\n• One user = one account"
-        )
+        await message.reply("• Fake accounts not allowed\n• Force join mandatory")
 
     elif text == "📢 Updates":
-        await message.reply(f"📢 Updates: {UPDATE_CHANNEL}")
+        await message.reply(f"📢 {UPDATE_CHANNEL}")
 
     elif text == "🆘 Support":
-        await message.reply(f"🆘 Support: {SUPPORT_ID}")
+        await message.reply(f"🆘 {SUPPORT_ID}")
 
-@app.on_message(filters.private)
+# ================= BROADCAST ==============
+@app.on_message(filters.command("broadcast") & filters.private)
+async def broadcast_start(client, message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    BROADCAST_MODE[message.from_user.id] = True
+    await message.reply("📢 Send message to broadcast")
+
+@app.on_message(filters.private & ~filters.command)
 async def broadcast_sender(client, message):
     uid = message.from_user.id
 
-    if uid not in BROADCAST_MODE:
+    if uid not in ADMIN_IDS:
         return
     if BROADCAST_MODE.get(uid) is not True:
-        return
-    if uid not in ADMIN_IDS:
         return
 
     BROADCAST_MODE.pop(uid, None)
@@ -264,7 +223,7 @@ async def broadcast_sender(client, message):
     sent = 0
     failed = 0
 
-    await message.reply("🚀 Broadcast started...")
+    await message.reply("🚀 Broadcasting...")
 
     async for u in users.find({}, {"user_id": 1}):
         try:
@@ -274,62 +233,20 @@ async def broadcast_sender(client, message):
         except:
             failed += 1
 
-    await message.reply(
-        f"📢 Broadcast Completed\n\n✅ Sent: {sent}\n❌ Failed: {failed}"
-    )
-    
-# ================= ADMIN =================
-@app.on_message(filters.command("broadcast") & filters.private)
-async def broadcast_start(client, message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
+    await message.reply(f"✅ Done\nSent: {sent}\nFailed: {failed}")
 
-    BROADCAST_MODE[message.from_user.id] = True
-    await message.reply("📢 Send message to broadcast (text / photo / video / file)")
-    
+# ================= ADMIN ==================
 @app.on_message(filters.command("total") & filters.private)
 async def total(_, message):
     if message.from_user.id in ADMIN_IDS:
-        await message.reply(
-            f"👥 Total Users: {users.count_documents({})}"
-        )
+        await message.reply(f"👥 Total Users: {users.count_documents({})}")
 
 @app.on_message(filters.command("resetlb") & filters.private)
 async def reset_lb(_, message):
     if message.from_user.id in ADMIN_IDS:
         users.update_many({}, {"$set": {"referrals": 0}})
-        ref_logger.warning("ADMIN RESET LEADERBOARD")
         await message.reply("✅ Leaderboard reset")
 
-@app.on_message(filters.command("ban") & filters.private)
-async def ban_user(_, message):
-    if message.from_user.id in ADMIN_IDS:
-        _, uid = message.text.split()
-        users.update_one({"user_id": int(uid)}, {"$set": {"banned": 1}})
-        await message.reply(f"🚫 User {uid} banned")
-
-@app.on_message(filters.command("addref") & filters.private)
-async def add_ref(_, message):
-    if message.from_user.id in ADMIN_IDS:
-        _, uid, c = message.text.split()
-        users.update_one({"user_id": int(uid)}, {"$inc": {"referrals": int(c)}})
-        await message.reply("✅ Added")
-
-@app.on_message(filters.command("minusref") & filters.private)
-async def minus_ref(_, message):
-    if message.from_user.id in ADMIN_IDS:
-        _, uid, c = message.text.split()
-        users.update_one({"user_id": int(uid)}, {"$inc": {"referrals": -int(c)}})
-        await message.reply("✅ Removed")
-
-@app.on_message(filters.command("setref") & filters.private)
-async def set_ref(_, message):
-    if message.from_user.id in ADMIN_IDS:
-        _, uid, c = message.text.split()
-        users.update_one({"user_id": int(uid)}, {"$set": {"referrals": int(c)}})
-        await message.reply("✅ Set")
-
-# ================= RUN =================
-
+# ================= RUN ====================
 print("🤖 Bot Started Successfully")
 app.run()
