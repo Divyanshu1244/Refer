@@ -175,7 +175,7 @@ async def menu(_, message):
         msg = "🏆 TOP LEADERBOARD\n\n"
         
         for i, u in enumerate(rows, start=1):
-        name = u.get("name", "User")
+            name = u.get("name", "User")
 
         # 🔹 FIXED WIDTH NAME (10 chars)
         if len(name) > 10:
