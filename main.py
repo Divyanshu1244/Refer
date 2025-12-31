@@ -85,6 +85,14 @@ async def start(client, message):
     uid = message.from_user.id
     args = message.command
 
+    # ⏳ NORMAL LOADING (5 sec)
+    loading = await message.reply("⏳ Loading...")
+    await asyncio.sleep(5)
+    try:
+        await loading.delete()
+    except:
+        pass
+
     user = users.find_one({"user_id": uid})
 
     ref_id = 0
@@ -141,7 +149,7 @@ async def joined(client, query):
     except:
         pass
 
-    # 🔥 AUTO /start
+    # AUTO /start
     fake_message = query.message
     fake_message.from_user = query.from_user
     fake_message.command = ["start"]
