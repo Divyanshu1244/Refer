@@ -1,9 +1,18 @@
 import os
 import asyncio
+import logging
 from pymongo import MongoClient
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatMemberStatus
+
+# ================= LOGGER =================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(message)s"
+)
+ref_logger = logging.getLogger("REFERRAL")
+# =========================================
 
 # ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN") or "8231560346:AAEYH6--lmZyOc3vyb2ju-tPkhDJf05rrvU"
@@ -139,10 +148,18 @@ async def joined(client, query):
     user = users.find_one({"user_id": uid})
     if user and user.get("joined_confirmed", 0) == 0:
         users.update_one({"user_id": uid}, {"$set": {"joined_confirmed": 1}})
+
         if user.get("referred_by", 0):
+            referrer = user["referred_by"]
+
             users.update_one(
-                {"user_id": user["referred_by"]},
+                {"user_id": referrer},
                 {"$inc": {"referrals": 1}}
+            )
+
+            # ✅ REFERRAL LOGGER
+            ref_logger.info(
+                f"REF | {referrer} <- {uid} | Total +1"
             )
 
     try:
