@@ -1,18 +1,33 @@
 import os
+import sys
 import asyncio
 import logging
 from pymongo import MongoClient
 from pyrogram import Client, filters
-from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import (
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
+)
 from pyrogram.enums import ChatMemberStatus
 
-# ================= LOGGER =================
+# ================= LOGGER (PROPER) =================
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(message)s"
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)  # Railway / Docker friendly
+    ]
 )
+
+# 🔇 Pyrogram spam kam
+logging.getLogger("pyrogram").setLevel(logging.WARNING)
+
+# ✅ Referral logger
 ref_logger = logging.getLogger("REFERRAL")
-# =========================================
+ref_logger.setLevel(logging.INFO)
+# ==================================================
 
 # ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN") or "8231560346:AAEYH6--lmZyOc3vyb2ju-tPkhDJf05rrvU"
@@ -30,6 +45,7 @@ UPDATE_CHANNEL = "@YourUpdateChannel"
 ADMIN_IDS = [6335046711]
 # =========================================
 
+# ================= BOT =================
 app = Client(
     "referral_bot",
     api_id=API_ID,
@@ -37,6 +53,7 @@ app = Client(
     bot_token=BOT_TOKEN
 )
 
+# ================= DATABASE =================
 mongo = MongoClient(MONGO_URL)
 db = mongo["referralbot"]
 users = db["users"]
@@ -55,7 +72,11 @@ def main_menu():
 # ================= FORCE JOIN =================
 async def is_joined(user_id):
     try:
-        ok = (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER)
+        ok = (
+            ChatMemberStatus.MEMBER,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.OWNER
+        )
         m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
         m2 = await app.get_chat_member(FORCE_CHANNEL_2, user_id)
         return m1.status in ok and m2.status in ok
@@ -123,7 +144,7 @@ async def start_handler(client, message):
         reply_markup=main_menu()
     )
 
-# helper
+# ================= HELPER =================
 async def delete_later(msg, sec):
     await asyncio.sleep(sec)
     try:
@@ -146,8 +167,12 @@ async def joined(client, query):
         return
 
     user = users.find_one({"user_id": uid})
+
     if user and user.get("joined_confirmed", 0) == 0:
-        users.update_one({"user_id": uid}, {"$set": {"joined_confirmed": 1}})
+        users.update_one(
+            {"user_id": uid},
+            {"$set": {"joined_confirmed": 1}}
+        )
 
         if user.get("referred_by", 0):
             referrer = user["referred_by"]
@@ -157,7 +182,7 @@ async def joined(client, query):
                 {"$inc": {"referrals": 1}}
             )
 
-            # ✅ REFERRAL LOGGER
+            # ✅ CLEAN REFERRAL LOG
             ref_logger.info(
                 f"REF | {referrer} <- {uid} | Total +1"
             )
@@ -188,7 +213,9 @@ async def menu(client, message):
         me = await client.get_me()
         link = f"https://t.me/{me.username}?start={uid}"
         u = users.find_one({"user_id": uid})
-        await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {u.get('referrals',0)}")
+        await message.reply(
+            f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {u.get('referrals', 0)}"
+        )
 
     elif text == "📊 Leaderboard":
         rows = users.find().sort("referrals", -1).limit(30)
@@ -198,7 +225,9 @@ async def menu(client, message):
         await message.reply(msg)
 
     elif text == "📜 Rules":
-        await message.reply("📜 RULES\n\n• Fake accounts not allowed\n• Force join mandatory\n• One user = one account")
+        await message.reply(
+            "📜 RULES\n\n• Fake accounts not allowed\n• Force join mandatory\n• One user = one account"
+        )
 
     elif text == "📢 Updates":
         await message.reply(f"📢 Updates: {UPDATE_CHANNEL}")
@@ -210,7 +239,10 @@ async def menu(client, message):
 @app.on_message(filters.command("total") & filters.private)
 async def total(_, message):
     if message.from_user.id in ADMIN_IDS:
-        await message.reply(f"👥 Total Users: {users.count_documents({})}")
+        await message.reply(
+            f"👥 Total Users: {users.count_documents({})}"
+        )
 
+# ================= RUN =================
 print("🤖 Bot Started Successfully")
 app.run()
