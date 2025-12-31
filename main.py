@@ -172,27 +172,12 @@ async def menu(_, message):
     elif text == "📊 Leaderboard":
         rows = users.find().sort("referrals", -1).limit(30)
         msg = "🏆 TOP LEADERBOARD\n\n"
-
+        
         for i, u in enumerate(rows, start=1):
-            raw_name = u.get("name", "User")
+            uid = str(u["user_id"])
+            msg += f"{i}. {uid} — {u.get('referrals', 0)}\n"
 
-            # 🔹 SANITIZE NAME (remove emoji / fancy unicode)
-            clean_name = re.sub(r"[^\w\s]", "", raw_name).strip()
-            if not clean_name:
-                clean_name = "User"
-
-            # 🔹 FIXED WIDTH (10 chars)
-            if len(clean_name) > 10:
-                clean_name = clean_name[:9] + "…"
-            else:
-                clean_name = clean_name.ljust(10)
-
-            uid_str = str(u["user_id"])
-            masked_id = "****" + uid_str[-4:]
-
-            msg += f"{i}. {clean_name} | {masked_id} — {u.get('referrals', 0)}\n"
-
-        await message.reply(msg)
+    await message.reply(msg)
 
     elif text == "📜 Rules":
         await message.reply(
