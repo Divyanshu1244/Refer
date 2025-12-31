@@ -177,18 +177,18 @@ async def menu(_, message):
         for i, u in enumerate(rows, start=1):
             name = u.get("name", "User")
 
-        # 🔹 FIXED WIDTH NAME (10 chars)
-        if len(name) > 10:
-            name = name[:9] + "…"
-        else:
-            name = name.ljust(10)
+            # 🔹 FIXED WIDTH NAME (10 chars)
+            if len(name) > 10:
+                name = name[:9] + "…"
+            else:
+                name = name.ljust(10)
 
-        uid = str(u["user_id"])
-        masked_id = "****" + uid[-4:]
+            uid = str(u["user_id"])
+            masked_id = "****" + uid[-4:]
 
-        msg += f"{i}. {name} | {masked_id} — {u.get('referrals',0)}\n"
+            msg += f"{i}. {name} | {masked_id} — {u.get('referrals',0)}\n"
 
-    await message.reply(msg)
+        await message.reply(msg)
 
     elif text == "📜 Rules":
         await message.reply(
