@@ -79,11 +79,6 @@ async def start(client, message):
 
     user = users.find_one({"user_id": uid})
 
-    # Check if banned
-    if user and user.get("banned", False):
-        await message.reply("❌ You are banned from using this bot.")
-        return
-
     ref_id = 0
     if len(args) > 1:
         try:
@@ -101,23 +96,8 @@ async def start(client, message):
             "name": name,
             "referred_by": ref_id,
             "referrals": 0,
-            "joined_confirmed": 0,
-            "banned": False
+            "joined_confirmed": 0
         })
-
-        # Logger: Notify referrer if ref_id exists
-        if ref_id:
-            referrer = users.find_one({"user_id": ref_id})
-            if referrer:
-                total_refs = referrer.get("referrals", 0) + 1
-                users.update_one({"user_id": ref_id}, {"$inc": {"referrals": 1}})
-                try:
-                    await app.send_message(
-                        ref_id,
-                        f"New Referral ({name})\nTotal Referral = {total_refs}"
-                    )
-                except:
-                    pass  # If referrer blocked bot, ignore
 
     if not await is_joined(uid):
         await message.reply(
@@ -161,11 +141,6 @@ async def menu(_, message):
     uid = message.from_user.id
     text = message.text
 
-    user = users.find_one({"user_id": uid})
-    if user and user.get("banned", False):
-        await message.reply("❌ You are banned from using this bot.")
-        return
-
     if not await is_joined(uid):
         await message.reply(
             "⚠️ Pehle dono channels join karo.\nJoin ke baad Joined button dabao.",
@@ -192,7 +167,7 @@ async def menu(_, message):
             )
             return
 
-        better = users.count_documents({"referrals": {"$gt": refs}, "banned": False})
+        better = users.count_documents({"referrals": {"$gt": refs}})
         rank = better + 1
 
         if rank == 1:
@@ -218,31 +193,26 @@ async def menu(_, message):
         )
 
     elif text == "📊 Leaderboard":
-        rows = users.find({"referrals": {"$gt": 0}, "banned": False}).sort("referrals", -1).limit(95)
+        rows = users.find({"referrals": {"$gt": 0}}).sort("referrals", -1).limit(95)
         msg = "🏆 TOP LEADERBOARD\n\n"
 
-        if not rows:
-            msg += "No users in leaderboard yet."
-        else:
-            for i, u in enumerate(rows, start=1):
-                name = u.get("name", "Unknown")
-                refs = u["referrals"]
-                if i == 1:
-                    prize = "30k"
-                elif i == 2:
-                    prize = "23k"
-                elif i == 3:
-                    prize = "15k"
-                elif i in (4, 5):
-                    prize = "8k"
-                elif 6 <= i <= 15:
-                    prize = "5k"
-                elif 16 <= i <= 30:
-                    prize = "3k"
-                else:
-                    prize = "—"
+        for i, u in enumerate(rows, start=1):
+            if i == 1:
+                prize = "30k"
+            elif i == 2:
+                prize = "23k"
+            elif i == 3:
+                prize = "15k"
+            elif i in (4, 5):
+                prize = "8k"
+            elif 6 <= i <= 15:
+                prize = "5k"
+            elif 16 <= rank <= 30:
+                prize = "3k"
+            else:
+                prize = "—"
 
-                msg += f"{i}. {name} — {refs} | {prize}\n"
+            msg += f"{i}. {u['user_id']} — {u['referrals']} | {prize}\n"
 
         await message.reply(msg)
 
@@ -333,45 +303,6 @@ async def minusref(_, message):
     users.update_one({"user_id": uid}, {"$set": {"referrals": new_val}})
     await message.reply(f"✅ Referrals updated: {new_val}")
 
-# ===== BAN USER =====
-@app.on_message(filters.command("ban") & filters.private)
-async def ban_user(_, message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    try:
-        _, uid = message.text.split()
-        uid = int(uid)
-    except:
-        await message.reply("❌ Usage: /ban USER_ID")
-        return
-
-    users.update_one(
-        {"user_id": uid},
-        {"$set": {"banned": True}},
-        upsert=True
-    )
-    await message.reply(f"✅ User {uid} has been banned.")
-
-# ===== UNBAN USER =====
-@app.on_message(filters.command("unban") & filters.private)
-async def unban_user(_, message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    try:
-        _, uid = message.text.split()
-        uid = int(uid)
-    except:
-        await message.reply("❌ Usage: /unban USER_ID")
-        return
-
-    users.update_one(
-        {"user_id": uid},
-        {"$set": {"banned": False}},
-        upsert=True
-    )
-    await message.reply(f"✅ User {uid} has been unbanned.")
-
 print("🤖 sanju i love you")
 app.run()
+
