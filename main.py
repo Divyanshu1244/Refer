@@ -102,8 +102,22 @@ async def start(client, message):
             "referred_by": ref_id,
             "referrals": 0,
             "joined_confirmed": 0,
-            "banned": False  # Added banned field
+            "banned": False
         })
+
+        # Logger: Notify referrer if ref_id exists
+        if ref_id:
+            referrer = users.find_one({"user_id": ref_id})
+            if referrer:
+                total_refs = referrer.get("referrals", 0) + 1
+                users.update_one({"user_id": ref_id}, {"$inc": {"referrals": 1}})
+                try:
+                    await app.send_message(
+                        ref_id,
+                        f"New Referral ({name})\nTotal Referral = {total_refs}"
+                    )
+                except:
+                    pass  # If referrer blocked bot, ignore
 
     if not await is_joined(uid):
         await message.reply(
