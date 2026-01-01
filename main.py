@@ -146,7 +146,7 @@ async def joined(client, query):
     await start(client, fake_message)
 
 # ================= MENU =================
-@app.on_message(filters.text & filters.private & ~filters.command)
+@app.on_message(filters.text & filters.private & ~filters.regex("^/"))
 async def menu(_, message):
     uid = message.from_user.id
     text = message.text
