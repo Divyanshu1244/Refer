@@ -79,6 +79,11 @@ async def start(client, message):
 
     user = users.find_one({"user_id": uid})
 
+    # Check if banned
+    if user and user.get("banned", False):
+        await message.reply("❌ You are banned from using this bot.")
+        return
+
     ref_id = 0
     if len(args) > 1:
         try:
@@ -96,7 +101,8 @@ async def start(client, message):
             "name": name,
             "referred_by": ref_id,
             "referrals": 0,
-            "joined_confirmed": 0
+            "joined_confirmed": 0,
+            "banned": False  # Added banned field
         })
 
     if not await is_joined(uid):
@@ -140,6 +146,11 @@ async def joined(client, query):
 async def menu(_, message):
     uid = message.from_user.id
     text = message.text
+
+    user = users.find_one({"user_id": uid})
+    if user and user.get("banned", False):
+        await message.reply("❌ You are banned from using this bot.")
+        return
 
     if not await is_joined(uid):
         await message.reply(
@@ -303,6 +314,45 @@ async def minusref(_, message):
     users.update_one({"user_id": uid}, {"$set": {"referrals": new_val}})
     await message.reply(f"✅ Referrals updated: {new_val}")
 
+# ===== BAN USER =====
+@app.on_message(filters.command("ban") & filters.private)
+async def ban_user(_, message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    try:
+        _, uid = message.text.split()
+        uid = int(uid)
+    except:
+        await message.reply("❌ Usage: /ban USER_ID")
+        return
+
+    users.update_one(
+        {"user_id": uid},
+        {"$set": {"banned": True}},
+        upsert=True
+    )
+    await message.reply(f"✅ User {uid} has been banned.")
+
+# ===== UNBAN USER =====
+@app.on_message(filters.command("unban") & filters.private)
+async def unban_user(_, message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    try:
+        _, uid = message.text.split()
+        uid = int(uid)
+    except:
+        await message.reply("❌ Usage: /unban USER_ID")
+        return
+
+    users.update_one(
+        {"user_id": uid},
+        {"$set": {"banned": False}},
+        upsert=True
+    )
+    await message.reply(f"✅ User {uid} has been unbanned.")
+
 print("🤖 sanju i love you")
 app.run()
-
