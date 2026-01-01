@@ -105,6 +105,20 @@ async def start(client, message):
             "banned": False
         })
 
+        # Logger: Notify referrer if ref_id exists
+        if ref_id:
+            referrer = users.find_one({"user_id": ref_id})
+            if referrer:
+                total_refs = referrer.get("referrals", 0) + 1
+                users.update_one({"user_id": ref_id}, {"$inc": {"referrals": 1}})
+                try:
+                    await app.send_message(
+                        ref_id,
+                        f"New Referral ({name})\nTotal Referral = {total_refs}"
+                    )
+                except:
+                    pass  # If referrer blocked bot, ignore
+
     if not await is_joined(uid):
         await message.reply(
             "⚠️ Pehle dono channels join karo.\nJoin ke baad **Joined** button dabao.",
@@ -178,7 +192,7 @@ async def menu(_, message):
             )
             return
 
-        better = users.count_documents({"referrals": {"$gt": refs}})
+        better = users.count_documents({"referrals": {"$gt": refs}, "banned": False})
         rank = better + 1
 
         if rank == 1:
@@ -204,7 +218,7 @@ async def menu(_, message):
         )
 
     elif text == "📊 Leaderboard":
-        rows = users.find({"referrals": {"$gt": 0}}).sort("referrals", -1).limit(95)
+        rows = users.find({"referrals": {"$gt": 0}, "banned": False}).sort("referrals", -1).limit(95)
         msg = "🏆 TOP LEADERBOARD\n\n"
 
         for i, u in enumerate(rows, start=1):
