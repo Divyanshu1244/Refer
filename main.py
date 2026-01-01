@@ -18,9 +18,9 @@ API_HASH = os.getenv("API_HASH") or "1d8fc7e8552f7141d5071f184af921e7"
 MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
 
 FORCE_CHANNEL_1 = "@KHELO_INDIANS"
-FORCE_CHANNEL_2 = -1003582278269  # Tere diya hua ID
+FORCE_CHANNEL_2 = -1003582278269
 
-PRIVATE_INVITE_LINK = "https://t.me/+hpOS9fIEJRkzN2U1"  # Tere diya hua link
+PRIVATE_INVITE_LINK = "https://t.me/+hpOS9fIEJRkzN2U1"
 
 SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "https://t.me/KHELO_INDIANS"
@@ -54,19 +54,17 @@ def main_menu():
 async def is_joined(user_id):
     try:
         m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
+        m2 = await app.get_chat_member(FORCE_CHANNEL_2, user_id)
         print(f"DEBUG: User {user_id} - Channel1 ({FORCE_CHANNEL_1}) status: {m1.status}")
-        
-        # Channel 2 ke liye temporary: Always assume joined (risky)
-        print(f"DEBUG: User {user_id} - Channel2 ({FORCE_CHANNEL_2}) assumed joined (temporary)")
-        m2_status = ChatMemberStatus.MEMBER
-        
+        print(f"DEBUG: User {user_id} - Channel2 ({FORCE_CHANNEL_2}) status: {m2.status}")
         ok = (
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.ADMINISTRATOR,
             ChatMemberStatus.OWNER,
-            ChatMemberStatus.RESTRICTED
+            ChatMemberStatus.RESTRICTED,
+            ChatMemberStatus.PENDING
         )
-        result = (m1.status in ok) and (m2_status in ok)
+        result = (m1.status in ok) and (m2.status in ok)
         print(f"DEBUG: User {user_id} - Is Joined: {result}")
         return result
     except Exception as e:
