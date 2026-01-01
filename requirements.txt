@@ -1,5 +1,2 @@
-pyrofork==2.3.32
-tgcrypto
+pyrogram==2.0.106
 pymongo==4.6.0
-
-
