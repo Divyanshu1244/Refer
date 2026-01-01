@@ -17,8 +17,10 @@ API_HASH = os.getenv("API_HASH") or "1d8fc7e8552f7141d5071f184af921e7"
 
 MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
 
-FORCE_CHANNEL_1 = "@KHELO_INDIANS"
-FORCE_CHANNEL_2 = -1003582278269
+FORCE_CHANNEL_1 = "@KHELO_INDIANS"      # Public channel
+FORCE_CHANNEL_2 = -1003582278269        # Private channel ID
+
+PRIVATE_INVITE_LINK = "https://t.me/+hpOS9fIEJRkzN2U1"
 
 SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "https://t.me/KHELO_INDIANS"
@@ -41,18 +43,9 @@ users = db["users"]
 def main_menu():
     return ReplyKeyboardMarkup(
         [
-            [
-                KeyboardButton("🔗 My referrals"),
-                KeyboardButton("📢 Updates")
-            ],
-            [
-                KeyboardButton("📍 My Position"),
-                KeyboardButton("📊 Leaderboard")
-            ],
-            [
-                KeyboardButton("🆘 Support"),
-                KeyboardButton("📜 Rules")
-            ]
+            [KeyboardButton("🔗 My referrals"), KeyboardButton("📢 Updates")],
+            [KeyboardButton("📍 My Position"), KeyboardButton("📊 Leaderboard")],
+            [KeyboardButton("🆘 Support"), KeyboardButton("📜 Rules")]
         ],
         resize_keyboard=True
     )
@@ -62,20 +55,26 @@ async def is_joined(user_id):
     try:
         m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
         m2 = await app.get_chat_member(FORCE_CHANNEL_2, user_id)
+
         ok = (
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.ADMINISTRATOR,
-            ChatMemberStatus.OWNER
+            ChatMemberStatus.OWNER,
+            ChatMemberStatus.RESTRICTED,  # 🔥 PRIVATE CHANNEL FIX
+            ChatMemberStatus.PENDING      # 🔥 INVITE / APPROVAL FIX
         )
+
         return (m1.status in ok) and (m2.status in ok)
-    except:
+
+    except Exception as e:
+        print("JOIN CHECK ERROR:", e)
         return False
 
 def force_buttons():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("✅ Join Channel 1", url=f"https://t.me/{FORCE_CHANNEL_1[1:]}")],
-            [InlineKeyboardButton("✅ Join Channel 2", url="https://t.me/+hpOS9fIEJRkzN2U1")],
+            [InlineKeyboardButton("✅ Join Channel 1", url="https://t.me/KHELO_INDIANS")],
+            [InlineKeyboardButton("✅ Join Channel 2", url=PRIVATE_INVITE_LINK)],
             [InlineKeyboardButton("🔄 Joined", callback_data="joined")]
         ]
     )
@@ -129,7 +128,7 @@ async def start(client, message):
 
 # ================= JOINED CALLBACK =================
 @app.on_callback_query(filters.regex("^joined$"))
-async def joined(client, query):
+async def joined(_, query):
     if not await is_joined(query.from_user.id):
         await query.answer("❌ Abhi dono channels join nahi hue", show_alert=True)
         return
@@ -139,13 +138,13 @@ async def joined(client, query):
     except:
         pass
 
-    fake_message = query.message
-    fake_message.from_user = query.from_user
-    fake_message.command = ["start"]
-    await start(client, fake_message)
+    fake = query.message
+    fake.from_user = query.from_user
+    fake.command = ["start"]
+    await start(app, fake)
 
 # ================= MENU =================
-@app.on_message(filters.text & filters.private & ~filters.regex("^/"))
+@app.on_message(filters.text & filters.private & ~filters.command)
 async def menu(_, message):
     uid = message.from_user.id
     text = message.text
@@ -161,72 +160,16 @@ async def menu(_, message):
         me = await app.get_me()
         link = f"https://t.me/{me.username}?start={uid}"
         user = users.find_one({"user_id": uid})
-        count = user.get("referrals", 0)
-        await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}")
-
-    elif text == "📍 My Position":
-        user = users.find_one({"user_id": uid})
-        refs = user.get("referrals", 0)
-
-        if refs <= 0:
-            await message.reply(
-                "📍 My Position\n\n"
-                "❌ You have 0 referrals\n"
-                "🚀 Start referring to enter leaderboard"
-            )
-            return
-
-        better = users.count_documents({"referrals": {"$gt": refs}})
-        rank = better + 1
-
-        if rank == 1:
-            prize = "30k"
-        elif rank == 2:
-            prize = "23k"
-        elif rank == 3:
-            prize = "15k"
-        elif rank in (4, 5):
-            prize = "8k"
-        elif 6 <= rank <= 15:
-            prize = "5k"
-        elif 16 <= rank <= 30:
-            prize = "3k"
-        else:
-            prize = "—"
-
         await message.reply(
-            f"📍 My Position\n\n"
-            f"🏅 Rank: #{rank}\n"
-            f"👥 Referrals: {refs}\n"
-            f"💰 Prize: {prize}"
+            f"🔗 Your Referral Link:\n{link}\n\n"
+            f"👥 Referrals: {user.get('referrals', 0)}"
         )
-
-    elif text == "📊 Leaderboard":
-        rows = users.find({"referrals": {"$gt": 0}}).sort("referrals", -1).limit(95)
-        msg = "🏆 TOP LEADERBOARD\n\n"
-
-        for i, u in enumerate(rows, start=1):
-            if i == 1:
-                prize = "30k"
-            elif i == 2:
-                prize = "23k"
-            elif i == 3:
-                prize = "15k"
-            elif i in (4, 5):
-                prize = "8k"
-            elif 6 <= i <= 15:
-                prize = "5k"
-            elif 16 <= i <= 30:
-                prize = "3k"
-            else:
-                prize = "—"
-
-            msg += f"{i}. {u['user_id']} — {u['referrals']} | {prize}\n"
-
-        await message.reply(msg)
 
     elif text == "📢 Updates":
         await message.reply(f"📢 Updates: {UPDATE_CHANNEL}")
+
+    elif text == "🆘 Support":
+        await message.reply(f"🆘 Support: {SUPPORT_ID}")
 
     elif text == "📜 Rules":
         await message.reply(
@@ -237,9 +180,6 @@ async def menu(_, message):
             "• Final decision by system"
         )
 
-    elif text == "🆘 Support":
-        await message.reply(f"🆘 Support: {SUPPORT_ID}")
-
 # ================= ADMIN =================
 @app.on_message(filters.command("total") & filters.private)
 async def total(_, message):
@@ -247,66 +187,5 @@ async def total(_, message):
         return
     await message.reply(f"👥 Total Users: {users.count_documents({})}")
 
-@app.on_message(filters.command("broadcast") & filters.private)
-async def broadcast(_, message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
-    if not message.reply_to_message:
-        await message.reply("❌ Reply to a message with /broadcast")
-        return
-
-    for u in users.find({}, {"user_id": 1}):
-        try:
-            await message.reply_to_message.copy(u["user_id"])
-            await asyncio.sleep(0.05)
-        except:
-            pass
-
-    await message.reply("✅ Broadcast completed")
-
-# ===== ADD REF =====
-@app.on_message(filters.command("addref") & filters.private)
-async def addref(_, message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    try:
-        _, uid, amount = message.text.split()
-        uid = int(uid)
-        amount = int(amount)
-    except:
-        await message.reply("❌ Usage: /addref USER_ID AMOUNT")
-        return
-
-    users.update_one(
-        {"user_id": uid},
-        {"$inc": {"referrals": amount}},
-        upsert=True
-    )
-    await message.reply(f"✅ Added {amount} referrals to {uid}")
-
-# ===== MINUS REF =====
-@app.on_message(filters.command("minusref") & filters.private)
-async def minusref(_, message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    try:
-        _, uid, amount = message.text.split()
-        uid = int(uid)
-        amount = int(amount)
-    except:
-        await message.reply("❌ Usage: /minusref USER_ID AMOUNT")
-        return
-
-    user = users.find_one({"user_id": uid})
-    if not user:
-        await message.reply("❌ User not found")
-        return
-
-    new_val = max(0, user.get("referrals", 0) - amount)
-    users.update_one({"user_id": uid}, {"$set": {"referrals": new_val}})
-    await message.reply(f"✅ Referrals updated: {new_val}")
-
-print("🤖 sanju i love you")
+print("🤖 Bot Started Successfully")
 app.run()
