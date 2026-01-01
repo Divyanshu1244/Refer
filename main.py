@@ -140,10 +140,14 @@ async def joined(_, query):
     await start(_, fake)
 
 # ================= MENU HANDLER =================
-@app.on_message(filters.text & filters.private & ~filters.command)
+@app.on_message(filters.text & filters.private)  # 🔥 FIXED FILTER
 async def menu(_, message):
     uid = message.from_user.id
     text = message.text
+
+    # 🔥 Check if it's a command, skip if yes
+    if text.startswith('/'):
+        return
 
     if not await is_joined(uid):
         await message.reply(
