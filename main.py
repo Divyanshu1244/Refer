@@ -142,7 +142,6 @@ async def joined(client, query):
     fake_message = query.message
     fake_message.from_user = query.from_user
     fake_message.command = ["start"]
-
     await start(client, fake_message)
 
 # ================= MENU =================
@@ -162,20 +161,14 @@ async def menu(_, message):
         me = await app.get_me()
         link = f"https://t.me/{me.username}?start={uid}"
         user = users.find_one({"user_id": uid})
-        count = user.get("referrals", 0) if user else 0
-        await message.reply(
-            f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}"
-        )
+        count = user.get("referrals", 0)
+        await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}")
 
     elif text == "📍 My Position":
         user = users.find_one({"user_id": uid})
-        if not user:
-            await message.reply("❌ User data not found")
-            return
+        refs = user.get("referrals", 0)
 
-        my_refs = user.get("referrals", 0)
-
-        if my_refs <= 0:
+        if refs <= 0:
             await message.reply(
                 "📍 My Position\n\n"
                 "❌ You have 0 referrals\n"
@@ -183,7 +176,7 @@ async def menu(_, message):
             )
             return
 
-        better = users.count_documents({"referrals": {"$gt": my_refs}})
+        better = users.count_documents({"referrals": {"$gt": refs}})
         rank = better + 1
 
         if rank == 1:
@@ -204,7 +197,7 @@ async def menu(_, message):
         await message.reply(
             f"📍 My Position\n\n"
             f"🏅 Rank: #{rank}\n"
-            f"👥 Referrals: {my_refs}\n"
+            f"👥 Referrals: {refs}\n"
             f"💰 Prize: {prize}"
         )
 
@@ -228,12 +221,12 @@ async def menu(_, message):
             else:
                 prize = "—"
 
-            msg += f"{i}. {u['user_id']} — {u.get('referrals',0)} | {prize}\n"
-
-        if msg.strip() == "🏆 TOP LEADERBOARD":
-            msg += "\nNo referrals yet. Be the first one 🚀"
+            msg += f"{i}. {u['user_id']} — {u['referrals']} | {prize}\n"
 
         await message.reply(msg)
+
+    elif text == "📢 Updates":
+        await message.reply(f"📢 Updates: {UPDATE_CHANNEL}")
 
     elif text == "📜 Rules":
         await message.reply(
@@ -243,9 +236,6 @@ async def menu(_, message):
             "• One user = one account\n"
             "• Final decision by system"
         )
-
-    elif text == "📢 Updates":
-        await message.reply(f"📢 Updates: {UPDATE_CHANNEL}")
 
     elif text == "🆘 Support":
         await message.reply(f"🆘 Support: {SUPPORT_ID}")
@@ -261,23 +251,62 @@ async def total(_, message):
 async def broadcast(_, message):
     if message.from_user.id not in ADMIN_IDS:
         return
-
     if not message.reply_to_message:
-        await message.reply("❌ Kisi message ko reply karke /broadcast likho")
+        await message.reply("❌ Reply to a message with /broadcast")
         return
 
-    sent, failed = 0, 0
     for u in users.find({}, {"user_id": 1}):
         try:
             await message.reply_to_message.copy(u["user_id"])
-            sent += 1
             await asyncio.sleep(0.05)
         except:
-            failed += 1
+            pass
 
-    await message.reply(
-        f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}"
+    await message.reply("✅ Broadcast completed")
+
+# ===== ADD REF =====
+@app.on_message(filters.command("addref") & filters.private)
+async def addref(_, message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    try:
+        _, uid, amount = message.text.split()
+        uid = int(uid)
+        amount = int(amount)
+    except:
+        await message.reply("❌ Usage: /addref USER_ID AMOUNT")
+        return
+
+    users.update_one(
+        {"user_id": uid},
+        {"$inc": {"referrals": amount}},
+        upsert=True
     )
+    await message.reply(f"✅ Added {amount} referrals to {uid}")
+
+# ===== MINUS REF =====
+@app.on_message(filters.command("minusref") & filters.private)
+async def minusref(_, message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    try:
+        _, uid, amount = message.text.split()
+        uid = int(uid)
+        amount = int(amount)
+    except:
+        await message.reply("❌ Usage: /minusref USER_ID AMOUNT")
+        return
+
+    user = users.find_one({"user_id": uid})
+    if not user:
+        await message.reply("❌ User not found")
+        return
+
+    new_val = max(0, user.get("referrals", 0) - amount)
+    users.update_one({"user_id": uid}, {"$set": {"referrals": new_val}})
+    await message.reply(f"✅ Referrals updated: {new_val}")
 
 print("🤖 sanju i love you")
 app.run()
