@@ -218,7 +218,7 @@ async def menu(_, message):
         )
 
     elif text == "📊 Leaderboard":
-        rows = users.find({"referrals": {"$gt": 0}, "banned": False}).sort("referrals", -1).limit(95)
+        rows = users.find({"referrals": {"$gt": 0}, "banned": True}).sort("referrals", -1).limit(95)
         msg = "🏆 TOP LEADERBOARD\n\n"
 
         for i, u in enumerate(rows, start=1):
