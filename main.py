@@ -17,9 +17,11 @@ API_HASH = os.getenv("API_HASH") or "1d8fc7e8552f7141d5071f184af921e7"
 
 MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
 
-FORCE_CHANNEL_1 = "@KHELO_INDIANS"      # Public channel
-FORCE_CHANNEL_2 = -1003582278269        # Private channel ID
+# 🔥 USE CHANNEL IDs ONLY (NO USERNAME)
+FORCE_CHANNEL_1 = -1002159485980   # 👈 REPLACE THIS
+FORCE_CHANNEL_2 = -1003582278269               # Private channel ID
 
+PUBLIC_CHANNEL_LINK = "https://t.me/KHELO_INDIANS"
 PRIVATE_INVITE_LINK = "https://t.me/+hpOS9fIEJRkzN2U1"
 
 SUPPORT_ID = "@YourSupportUsername"
@@ -60,9 +62,11 @@ async def is_joined(user_id):
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.ADMINISTRATOR,
             ChatMemberStatus.OWNER,
-            ChatMemberStatus.RESTRICTED,  # 🔥 PRIVATE CHANNEL FIX
-            ChatMemberStatus.PENDING      # 🔥 INVITE / APPROVAL FIX
+            ChatMemberStatus.RESTRICTED,
+            ChatMemberStatus.PENDING
         )
+
+        print("DEBUG STATUS → CH1:", m1.status, "| CH2:", m2.status)
 
         return (m1.status in ok) and (m2.status in ok)
 
@@ -73,7 +77,7 @@ async def is_joined(user_id):
 def force_buttons():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("✅ Join Channel 1", url="https://t.me/KHELO_INDIANS")],
+            [InlineKeyboardButton("✅ Join Channel 1", url=PUBLIC_CHANNEL_LINK)],
             [InlineKeyboardButton("✅ Join Channel 2", url=PRIVATE_INVITE_LINK)],
             [InlineKeyboardButton("🔄 Joined", callback_data="joined")]
         ]
@@ -81,7 +85,7 @@ def force_buttons():
 
 # ================= START =================
 @app.on_message(filters.command("start") & filters.private)
-async def start(client, message):
+async def start(_, message):
     uid = message.from_user.id
     args = message.command
 
@@ -144,14 +148,12 @@ async def joined(_, query):
     await start(app, fake)
 
 # ================= MENU =================
-@app.on_message(filters.text & filters.private)  # 🔥 FIXED FILTER
+@app.on_message(filters.text & filters.private)
 async def menu(_, message):
-    uid = message.from_user.id
-    text = message.text
-
-    # 🔥 Check if it's a command, skip if yes
-    if text.startswith('/'):
+    if message.text.startswith("/"):
         return
+
+    uid = message.from_user.id
 
     if not await is_joined(uid):
         await message.reply(
@@ -160,7 +162,7 @@ async def menu(_, message):
         )
         return
 
-    if text == "🔗 My referrals":
+    if message.text == "🔗 My referrals":
         me = await app.get_me()
         link = f"https://t.me/{me.username}?start={uid}"
         user = users.find_one({"user_id": uid})
@@ -169,13 +171,13 @@ async def menu(_, message):
             f"👥 Referrals: {user.get('referrals', 0)}"
         )
 
-    elif text == "📢 Updates":
+    elif message.text == "📢 Updates":
         await message.reply(f"📢 Updates: {UPDATE_CHANNEL}")
 
-    elif text == "🆘 Support":
+    elif message.text == "🆘 Support":
         await message.reply(f"🆘 Support: {SUPPORT_ID}")
 
-    elif text == "📜 Rules":
+    elif message.text == "📜 Rules":
         await message.reply(
             "📜 RULES\n\n"
             "• Fake accounts not allowed\n"
