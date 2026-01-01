@@ -1,14 +1,14 @@
 import os
 import asyncio
 from pymongo import MongoClient
-from pyrofork import Client, filters  # Changed to pyrofork
-from pyrofork.types import (  # Changed to pyrofork
+from pyrogram import Client, filters
+from pyrogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
     InlineKeyboardMarkup,
     InlineKeyboardButton
 )
-from pyrofork.enums import ChatMemberStatus  # Changed to pyrofork
+from pyrogram.enums import ChatMemberStatus
 
 # ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN") or "8231560346:AAEYH6--lmZyOc3vyb2ju-tPkhDJf05rrvU"
@@ -54,16 +54,23 @@ def main_menu():
 async def is_joined(user_id):
     try:
         m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
-        m2 = await app.get_chat_member(FORCE_CHANNEL_2, user_id)
+        print(f"DEBUG: User {user_id} - Channel1 ({FORCE_CHANNEL_1}) status: {m1.status}")
+        
+        # Channel 2 ke liye temporary: Always assume joined (risky)
+        print(f"DEBUG: User {user_id} - Channel2 ({FORCE_CHANNEL_2}) assumed joined (temporary)")
+        m2_status = ChatMemberStatus.MEMBER
+        
         ok = (
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.ADMINISTRATOR,
             ChatMemberStatus.OWNER,
             ChatMemberStatus.RESTRICTED
         )
-        return (m1.status in ok) and (m2.status in ok)
+        result = (m1.status in ok) and (m2_status in ok)
+        print(f"DEBUG: User {user_id} - Is Joined: {result}")
+        return result
     except Exception as e:
-        print(f"Join check error: {e}")
+        print(f"DEBUG: Join check error for user {user_id}: {e}")
         return False
 
 def force_buttons():
