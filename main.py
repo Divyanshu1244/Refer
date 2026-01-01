@@ -218,26 +218,31 @@ async def menu(_, message):
         )
 
     elif text == "📊 Leaderboard":
-        rows = users.find({"referrals": {"$gt": 0}, "banned": True}).sort("referrals", -1).limit(95)
+        rows = users.find({"referrals": {"$gt": 0}, "banned": False}).sort("referrals", -1).limit(95)
         msg = "🏆 TOP LEADERBOARD\n\n"
 
-        for i, u in enumerate(rows, start=1):
-            if i == 1:
-                prize = "30k"
-            elif i == 2:
-                prize = "23k"
-            elif i == 3:
-                prize = "15k"
-            elif i in (4, 5):
-                prize = "8k"
-            elif 6 <= i <= 15:
-                prize = "5k"
-            elif 16 <= i <= 30:
-                prize = "3k"
-            else:
-                prize = "—"
+        if not rows:
+            msg += "No users in leaderboard yet."
+        else:
+            for i, u in enumerate(rows, start=1):
+                name = u.get("name", "Unknown")
+                refs = u["referrals"]
+                if i == 1:
+                    prize = "30k"
+                elif i == 2:
+                    prize = "23k"
+                elif i == 3:
+                    prize = "15k"
+                elif i in (4, 5):
+                    prize = "8k"
+                elif 6 <= i <= 15:
+                    prize = "5k"
+                elif 16 <= i <= 30:
+                    prize = "3k"
+                else:
+                    prize = "—"
 
-            msg += f"{i}. {u['user_id']} — {u['referrals']} | {prize}\n"
+                msg += f"{i}. {name} — {refs} | {prize}\n"
 
         await message.reply(msg)
 
