@@ -165,35 +165,34 @@ async def menu(_, message):
         await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}")
 
     elif text == "📊 Leaderboard":
-    # 🔥 0 referral wale users hide
+        # 🔥 0 referral wale users hide
         rows = users.find(
-        {"referrals": {"$gt": 0}}
+            {"referrals": {"$gt": 0}}
         ).sort("referrals", -1).limit(95)
         
         msg = "🏆 TOP LEADERBOARD\n\n"
         
         for i, u in enumerate(rows, start=1):
-
-        # 💰 Prize logic (Top 30 only)
+            # 💰 Prize logic (Top 30 only)
             if i == 1:
-            prize = "30k"
+                prize = "30k"
             elif i == 2:
-            prize = "23k"
+                prize = "23k"
             elif i == 3:
-            prize = "15k"
+                prize = "15k"
             elif i in (4, 5):
-            prize = "8k"
+                prize = "8k"
             elif 6 <= i <= 15:
-            prize = "5k"
+                prize = "5k"
             elif 16 <= i <= 30:
-            prize = "3k"
+                prize = "3k"
             else:
-            prize = "—"
+                prize = "—"
 
             msg += f"{i}. {u['user_id']} — {u.get('referrals', 0)}     | {prize}\n"
 
         if msg.strip() == "🏆 TOP LEADERBOARD":
-        msg += "\nNo referrals yet. Be the first one 🚀"
+            msg += "\nNo referrals yet. Be the first one 🚀"
 
         await message.reply(msg)
 
