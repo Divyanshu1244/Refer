@@ -207,7 +207,7 @@ async def menu(_, message):
                 prize = "8k"
             elif 6 <= i <= 15:
                 prize = "5k"
-            elif 16 <= i <= 30:
+            elif 16 <= rank <= 30:
                 prize = "3k"
             else:
                 prize = "—"
@@ -246,14 +246,18 @@ async def broadcast(_, message):
         await message.reply("❌ Reply to a message with /broadcast")
         return
 
+    sent = 0
+    failed = 0
+
     for u in users.find({}, {"user_id": 1}):
         try:
             await message.reply_to_message.copy(u["user_id"])
+            sent += 1
             await asyncio.sleep(0.05)
         except:
-            pass
+            failed += 1
 
-    await message.reply("✅ Broadcast completed")
+    await message.reply("✅ Broadcast Done\n\n📤 Sent: {}\n❌ Failed: {}".format(sent, failed))
 
 # ===== ADD REF =====
 @app.on_message(filters.command("addref") & filters.private)
