@@ -17,9 +17,11 @@ API_HASH = os.getenv("API_HASH") or "PASTE_API_HASH"
 
 MONGO_URL = os.getenv("MONGO_URL") or "PASTE_MONGO_URL"
 
-# 🔒 SINGLE FORCE SUB (PRIVATE)
-FORCE_CHANNEL_ID = -1003582278269
-FORCE_INVITE_LINK = "https://t.me/+hpOS9fIEJRkzN2U1"
+# 🔒 FORCE SUB CHANNELS
+PRIVATE_CHANNEL_ID = -1003582278269
+PRIVATE_INVITE_LINK = "https://t.me/+hpOS9fIEJRkzN2U1"
+
+PUBLIC_CHANNEL_USERNAME = "@KHELO_INDIANS"
 
 SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "https://t.me/KHELO_INDIANS"
@@ -28,7 +30,7 @@ ADMIN_IDS = [6335046711]
 # =========================================
 
 app = Client(
-    "referral_bot",
+    "referral_bot",  # ⚠️ session name SAME rakha
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN
@@ -52,19 +54,24 @@ def main_menu():
 # ================= FORCE SUB CHECK =================
 async def is_joined(user_id: int) -> bool:
     try:
-        member = await app.get_chat_member(FORCE_CHANNEL_ID, user_id)
-        return member.status in (
+        private = await app.get_chat_member(PRIVATE_CHANNEL_ID, user_id)
+        public = await app.get_chat_member(PUBLIC_CHANNEL_USERNAME, user_id)
+
+        ok = (
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.ADMINISTRATOR,
             ChatMemberStatus.OWNER
         )
+
+        return private.status in ok and public.status in ok
     except:
         return False
 
-def force_button():
+def force_buttons():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("✅ Join Channel", url=FORCE_INVITE_LINK)],
+            [InlineKeyboardButton("✅ Join Private Channel", url=PRIVATE_INVITE_LINK)],
+            [InlineKeyboardButton("✅ Join Public Channel", url=f"https://t.me/{PUBLIC_CHANNEL_USERNAME[1:]}")],
             [InlineKeyboardButton("🔄 Joined", callback_data="joined")]
         ]
     )
@@ -112,11 +119,11 @@ async def start(_, message):
                 except:
                     pass
 
-    # 🔒 Force Sub
+    # 🔒 FORCE SUB CHECK
     if not await is_joined(uid):
         await message.reply(
-            "⚠️ Pehle channel join karo\nJoin ke baad **Joined** button dabao",
-            reply_markup=force_button()
+            "⚠️ Pehle **dono channels** join karo\nJoin ke baad **Joined** button dabao",
+            reply_markup=force_buttons()
         )
         return
 
@@ -130,7 +137,7 @@ async def start(_, message):
 @app.on_callback_query(filters.regex("^joined$"))
 async def joined(_, query):
     if not await is_joined(query.from_user.id):
-        await query.answer("❌ Abhi channel join nahi hua", show_alert=True)
+        await query.answer("❌ Abhi dono channels join nahi hue", show_alert=True)
         return
 
     await query.message.delete()
@@ -140,19 +147,18 @@ async def joined(_, query):
     await start(_, fake)
 
 # ================= MENU HANDLER =================
-@app.on_message(filters.text & filters.private)  # 🔥 FIXED FILTER
+@app.on_message(filters.text & filters.private)
 async def menu(_, message):
     uid = message.from_user.id
     text = message.text
 
-    # 🔥 Check if it's a command, skip if yes
-    if text.startswith('/'):
+    if text.startswith("/"):
         return
 
     if not await is_joined(uid):
         await message.reply(
-            "⚠️ Channel join karo pehle",
-            reply_markup=force_button()
+            "⚠️ Pehle dono channels join karo",
+            reply_markup=force_buttons()
         )
         return
 
