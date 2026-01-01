@@ -1,14 +1,14 @@
 import os
 import asyncio
 from pymongo import MongoClient
-from pyrogram import Client, filters
-from pyrogram.types import (
+from pyrofork import Client, filters  # Changed to pyrofork
+from pyrofork.types import (  # Changed to pyrofork
     ReplyKeyboardMarkup,
     KeyboardButton,
     InlineKeyboardMarkup,
     InlineKeyboardButton
 )
-from pyrogram.enums import ChatMemberStatus
+from pyrofork.enums import ChatMemberStatus  # Changed to pyrofork
 
 # ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN") or "8231560346:AAEYH6--lmZyOc3vyb2ju-tPkhDJf05rrvU"
@@ -54,29 +54,17 @@ def main_menu():
 async def is_joined(user_id):
     try:
         m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
-        print(f"DEBUG: User {user_id} - Channel1 ({FORCE_CHANNEL_1}) status: {m1.status}")
-        
-        # Channel 2 ke liye try
-        try:
-            m2 = await app.get_chat_member(FORCE_CHANNEL_2, user_id)
-            print(f"DEBUG: User {user_id} - Channel2 ({FORCE_CHANNEL_2}) status: {m2.status}")
-        except Exception as e2:
-            print(f"DEBUG: Channel2 error: {e2} - Assuming joined for now (risky)")
-            m2_status = ChatMemberStatus.MEMBER  # Temporary: Assume joined
-        
+        m2 = await app.get_chat_member(FORCE_CHANNEL_2, user_id)
         ok = (
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.ADMINISTRATOR,
             ChatMemberStatus.OWNER,
-            ChatMemberStatus.RESTRICTED,
-            ChatMemberStatus.PENDING
+            ChatMemberStatus.RESTRICTED
         )
-        result = (m1.status in ok) and (m2_status in ok)
-        print(f"DEBUG: User {user_id} - Is Joined: {result}")
-        return result
+        return (m1.status in ok) and (m2.status in ok)
     except Exception as e:
-        print(f"DEBUG: Join check error for user {user_id}: {e}")
-        return False  # Agar dono fail, toh False
+        print(f"Join check error: {e}")
+        return False
 
 def force_buttons():
     return InlineKeyboardMarkup(
