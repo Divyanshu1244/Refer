@@ -46,11 +46,12 @@ def main_menu():
                 KeyboardButton("📢 Updates")
             ],
             [
-                KeyboardButton("📜 Rules"),
-                KeyboardButton("🆘 Support")
+                KeyboardButton("📍 My Position"),
+                KeyboardButton("📊 Leaderboard"")
             ],
             [
-                KeyboardButton("📊 Leaderboard")
+                KeyboardButton("🆘 Support"),
+                KeyboardButton("📜 Rules")
             ]
         ],
         resize_keyboard=True
@@ -145,7 +146,7 @@ async def joined(client, query):
     await start(client, fake_message)
 
 # ================= MENU =================
-@app.on_message(filters.text & filters.private & ~filters.regex("^/"))
+@app.on_message(filters.text & filters.private & ~filters.command)
 async def menu(_, message):
     uid = message.from_user.id
     text = message.text
@@ -162,18 +163,56 @@ async def menu(_, message):
         link = f"https://t.me/{me.username}?start={uid}"
         user = users.find_one({"user_id": uid})
         count = user.get("referrals", 0) if user else 0
-        await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}")
+        await message.reply(
+            f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}"
+        )
+
+    elif text == "📍 My Position":
+        user = users.find_one({"user_id": uid})
+        if not user:
+            await message.reply("❌ User data not found")
+            return
+
+        my_refs = user.get("referrals", 0)
+
+        if my_refs <= 0:
+            await message.reply(
+                "📍 My Position\n\n"
+                "❌ You have 0 referrals\n"
+                "🚀 Start referring to enter leaderboard"
+            )
+            return
+
+        better = users.count_documents({"referrals": {"$gt": my_refs}})
+        rank = better + 1
+
+        if rank == 1:
+            prize = "30k"
+        elif rank == 2:
+            prize = "23k"
+        elif rank == 3:
+            prize = "15k"
+        elif rank in (4, 5):
+            prize = "8k"
+        elif 6 <= rank <= 15:
+            prize = "5k"
+        elif 16 <= rank <= 30:
+            prize = "3k"
+        else:
+            prize = "—"
+
+        await message.reply(
+            f"📍 My Position\n\n"
+            f"🏅 Rank: #{rank}\n"
+            f"👥 Referrals: {my_refs}\n"
+            f"💰 Prize: {prize}"
+        )
 
     elif text == "📊 Leaderboard":
-        # 🔥 0 referral wale users hide
-        rows = users.find(
-            {"referrals": {"$gt": 0}}
-        ).sort("referrals", -1).limit(95)
-        
+        rows = users.find({"referrals": {"$gt": 0}}).sort("referrals", -1).limit(95)
         msg = "🏆 TOP LEADERBOARD\n\n"
-        
+
         for i, u in enumerate(rows, start=1):
-            # 💰 Prize logic (Top 30 only)
             if i == 1:
                 prize = "30k"
             elif i == 2:
@@ -189,7 +228,7 @@ async def menu(_, message):
             else:
                 prize = "—"
 
-            msg += f"{i}. {u['user_id']} — {u.get('referrals', 0)}     | {prize}\n"
+            msg += f"{i}. {u['user_id']} — {u.get('referrals',0)} | {prize}\n"
 
         if msg.strip() == "🏆 TOP LEADERBOARD":
             msg += "\nNo referrals yet. Be the first one 🚀"
@@ -236,7 +275,9 @@ async def broadcast(_, message):
         except:
             failed += 1
 
-    await message.reply(f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}")
+    await message.reply(
+        f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}"
+    )
 
-print("🤖 Bot Started Successfully")
+print("🤖 sanju i love you")
 app.run()
