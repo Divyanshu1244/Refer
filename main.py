@@ -47,7 +47,7 @@ def main_menu():
             ],
             [
                 KeyboardButton("📍 My Position"),
-                KeyboardButton("📊 Leaderboard"")
+                KeyboardButton("📊 Leaderboard")
             ],
             [
                 KeyboardButton("🆘 Support"),
