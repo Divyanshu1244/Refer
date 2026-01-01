@@ -18,7 +18,9 @@ API_HASH = os.getenv("API_HASH") or "1d8fc7e8552f7141d5071f184af921e7"
 MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
 
 FORCE_CHANNEL_1 = "@KHELO_INDIANS"
-FORCE_CHANNEL_2 = "@payalgamingviralvideo123"
+FORCE_CHANNEL_2 = -1003582278269  # Updated to private channel ID
+
+PRIVATE_INVITE_LINK = "https://t.me/+hpOS9fIEJRkzN2U1"  # Updated invite link
 
 SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "https://t.me/KHELO_INDIANS"
@@ -56,7 +58,9 @@ async def is_joined(user_id):
         ok = (
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.ADMINISTRATOR,
-            ChatMemberStatus.OWNER
+            ChatMemberStatus.OWNER,
+            ChatMemberStatus.RESTRICTED,  # For private channels
+            ChatMemberStatus.PENDING
         )
         return (m1.status in ok) and (m2.status in ok)
     except:
@@ -66,7 +70,7 @@ def force_buttons():
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("✅ Join Channel 1", url=f"https://t.me/{FORCE_CHANNEL_1[1:]}")],
-            [InlineKeyboardButton("✅ Join Channel 2", url=f"https://t.me/{FORCE_CHANNEL_2[1:]}")],
+            [InlineKeyboardButton("✅ Join Channel 2", url=PRIVATE_INVITE_LINK)],
             [InlineKeyboardButton("🔄 Joined", callback_data="joined")]
         ]
     )
