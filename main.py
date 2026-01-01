@@ -11,17 +11,17 @@ from pyrogram.types import (
 from pyrogram.enums import ChatMemberStatus
 
 # ================= CONFIG =================
-BOT_TOKEN = os.getenv("BOT_TOKEN") or "8231560346:AAEYH6--lmZyOc3vyb2ju-tPkhDJf05rrvU"
-API_ID = int(os.getenv("API_ID") or 36030323)
-API_HASH = os.getenv("API_HASH") or "1d8fc7e8552f7141d5071f184af921e7"
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "YOUR_BOT_TOKEN"
+API_ID = int(os.getenv("API_ID") or 123456)
+API_HASH = os.getenv("API_HASH") or "YOUR_API_HASH"
 
-MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
+MONGO_URL = os.getenv("MONGO_URL") or "YOUR_MONGO_URL"
 
 FORCE_CHANNEL_1 = "@payalgamingviralvideo123"
 FORCE_CHANNEL_2 = "@payalgamingviralvideo123"
 
-SUPPORT_ID = "@YourSupportUsername"
-UPDATE_CHANNEL = "@YourUpdateChannel"
+SUPPORT_ID = "@support"
+UPDATE_CHANNEL = "@updates"
 
 ADMIN_IDS = [6335046711]
 # =========================================
@@ -37,36 +37,28 @@ mongo = MongoClient(MONGO_URL)
 db = mongo["referralbot"]
 users = db["users"]
 
-# ================= MAIN MENU =================
+# ================= MENU =================
 def main_menu():
     return ReplyKeyboardMarkup(
         [
-            [
-                KeyboardButton("🔗 My referrals"),
-                KeyboardButton("📢 Updates")
-            ],
-            [
-                KeyboardButton("📜 Rules"),
-                KeyboardButton("🆘 Support")
-            ],
-            [
-                KeyboardButton("📊 Leaderboard")
-            ]
+            [KeyboardButton("🔗 My referrals"), KeyboardButton("📢 Updates")],
+            [KeyboardButton("📊 Leaderboard"), KeyboardButton("📍 My Position")],
+            [KeyboardButton("📜 Rules"), KeyboardButton("🆘 Support")]
         ],
         resize_keyboard=True
     )
 
-# ================= FORCE JOIN CHECK =================
-async def is_joined(user_id):
+# ================= FORCE JOIN =================
+async def is_joined(uid):
     try:
-        m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
-        m2 = await app.get_chat_member(FORCE_CHANNEL_2, user_id)
         ok = (
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.ADMINISTRATOR,
             ChatMemberStatus.OWNER
         )
-        return (m1.status in ok) and (m2.status in ok)
+        m1 = await app.get_chat_member(FORCE_CHANNEL_1, uid)
+        m2 = await app.get_chat_member(FORCE_CHANNEL_2, uid)
+        return m1.status in ok and m2.status in ok
     except:
         return False
 
@@ -85,70 +77,26 @@ async def start(client, message):
     uid = message.from_user.id
     args = message.command
 
+    ref = int(args[1]) if len(args) > 1 and args[1].isdigit() else 0
+    if ref == uid:
+        ref = 0
+
     user = users.find_one({"user_id": uid})
-
-    ref_id = 0
-    if len(args) > 1:
-        try:
-            ref_id = int(args[1])
-            if ref_id == uid:
-                ref_id = 0
-        except:
-            ref_id = 0
-
-    name = message.from_user.first_name or "User"
 
     if not user:
         users.insert_one({
             "user_id": uid,
-            "name": name,
-            "referred_by": ref_id,
+            "referred_by": ref,
             "referrals": 0,
-            "joined_confirmed": 0
+            "banned": 0
         })
 
-    if not await is_joined(uid):
-        await message.reply(
-            "⚠️ Pehle dono channels join karo.\nJoin ke baad **Joined** button dabao.",
-            reply_markup=force_buttons()
-        )
-        return
-
-    users.update_one(
-        {"user_id": uid},
-        {"$set": {"joined_confirmed": 1, "name": name}}
-    )
-
-    await message.reply(
-        "🔥 Referral Tournament Live!\n\n"
-        "👥 Refer friends & win rewards\n"
-        "👇 Options niche diye gaye hain",
-        reply_markup=main_menu()
-    )
-
-# ================= JOINED CALLBACK =================
-@app.on_callback_query(filters.regex("^joined$"))
-async def joined(client, query):
-    if not await is_joined(query.from_user.id):
-        await query.answer("❌ Abhi dono channels join nahi hue", show_alert=True)
-        return
-
-    try:
-        await query.message.delete()
-    except:
-        pass
-
-    fake_message = query.message
-    fake_message.from_user = query.from_user
-    fake_message.command = ["start"]
-
-    await start(client, fake_message)
-
-# ================= MENU =================
-@app.on_message(filters.text & filters.private & ~filters.regex("^/"))
-async def menu(_, message):
-    uid = message.from_user.id
-    text = message.text
+        # ✅ CREDIT REFERRAL ONLY ONCE
+        if ref != 0:
+            users.update_one(
+                {"user_id": ref},
+                {"$inc": {"referrals": 1}}
+            )
 
     if not await is_joined(uid):
         await message.reply(
@@ -157,86 +105,158 @@ async def menu(_, message):
         )
         return
 
+    await message.reply(
+        "🔥 Referral Tournament Live!\n\n"
+        "👥 Refer friends & win rewards\n"
+        "👇 Options niche diye gaye hain",
+        reply_markup=main_menu()
+    )
+
+# ================= JOINED CALLBACK (SAFE) =================
+@app.on_callback_query(filters.regex("^joined$"))
+async def joined(client, query):
+    if not await is_joined(query.from_user.id):
+        await query.answer("❌ Join both channels first", show_alert=True)
+        return
+
+    await query.message.delete()
+    await client.send_message(query.from_user.id, "/start")
+
+# ================= MENU =================
+@app.on_message(filters.text & filters.private)
+async def menu(_, message):
+    uid = message.from_user.id
+    text = message.text
+
+    user = users.find_one({"user_id": uid})
+    if not user or user.get("banned"):
+        return
+
     if text == "🔗 My referrals":
         me = await app.get_me()
         link = f"https://t.me/{me.username}?start={uid}"
-        user = users.find_one({"user_id": uid})
-        count = user.get("referrals", 0) if user else 0
-        await message.reply(f"🔗 Your Referral Link:\n{link}\n\n👥 Referrals: {count}")
+        await message.reply(
+            f"🔗 Your Referral Link:\n{link}\n\n"
+            f"👥 Referrals: {user['referrals']}"
+        )
 
     elif text == "📊 Leaderboard":
-        # 🔥 0 referral wale users hide
         rows = users.find(
-            {"referrals": {"$gt": 0}}
+            {"referrals": {"$gt": 0}, "banned": 0}
         ).sort("referrals", -1).limit(95)
-        
+
         msg = "🏆 TOP LEADERBOARD\n\n"
-        
+
         for i, u in enumerate(rows, start=1):
-            # 💰 Prize logic (Top 30 only)
-            if i == 1:
-                prize = "30k"
-            elif i == 2:
-                prize = "23k"
-            elif i == 3:
-                prize = "15k"
-            elif i in (4, 5):
-                prize = "8k"
-            elif 6 <= i <= 15:
-                prize = "5k"
-            elif 16 <= i <= 30:
-                prize = "3k"
-            else:
-                prize = "—"
+            if i == 1: prize = "30k"
+            elif i == 2: prize = "23k"
+            elif i == 3: prize = "15k"
+            elif i in (4, 5): prize = "8k"
+            elif 6 <= i <= 15: prize = "5k"
+            elif 16 <= i <= 30: prize = "3k"
+            else: prize = "—"
 
-            msg += f"{i}. {u['user_id']} — {u.get('referrals', 0)}     | {prize}\n"
-
-        if msg.strip() == "🏆 TOP LEADERBOARD":
-            msg += "\nNo referrals yet. Be the first one 🚀"
+            msg += f"{i}. {u['user_id']} — {u['referrals']} | {prize}\n"
 
         await message.reply(msg)
+
+    elif text == "📍 My Position":
+        rows = list(
+            users.find({"referrals": {"$gt": 0}, "banned": 0})
+            .sort("referrals", -1)
+        )
+
+        rank = next((i+1 for i, u in enumerate(rows) if u["user_id"] == uid), None)
+        if not rank:
+            return await message.reply(
+                "❌ Abhi tum leaderboard me nahi ho.\n"
+                "👉 Pehle referral lao."
+            )
+
+        if rank == 1: prize = "30k"
+        elif rank == 2: prize = "23k"
+        elif rank == 3: prize = "15k"
+        elif rank in (4, 5): prize = "8k"
+        elif 6 <= rank <= 15: prize = "5k"
+        elif 16 <= rank <= 30: prize = "3k"
+        else: prize = "—"
+
+        await message.reply(
+            f"📍 Your Position\n\n"
+            f"🏆 Rank: {rank}\n"
+            f"👥 Referrals: {user['referrals']}\n"
+            f"💰 Prize: {prize}"
+        )
 
     elif text == "📜 Rules":
         await message.reply(
             "📜 RULES\n\n"
             "• Fake accounts not allowed\n"
-            "• Force join mandatory\n"
             "• One user = one account\n"
-            "• Final decision by system"
+            "• Force join mandatory"
         )
 
     elif text == "📢 Updates":
-        await message.reply(f"📢 Updates: {UPDATE_CHANNEL}")
+        await message.reply(UPDATE_CHANNEL)
 
     elif text == "🆘 Support":
-        await message.reply(f"🆘 Support: {SUPPORT_ID}")
+        await message.reply(SUPPORT_ID)
 
-# ================= ADMIN =================
+# ================= ADMIN COMMANDS =================
+def is_admin(m): 
+    return m.from_user.id in ADMIN_IDS
+
+@app.on_message(filters.command("lbreset") & filters.private)
+async def lbreset(_, m):
+    if not is_admin(m): return
+    users.update_many({}, {"$set": {"referrals": 0}})
+    await m.reply("✅ Leaderboard reset")
+
+@app.on_message(filters.command("addref") & filters.private)
+async def addref(_, m):
+    if not is_admin(m): return
+    uid, amt = map(int, m.command[1:])
+    users.update_one({"user_id": uid}, {"$inc": {"referrals": amt}})
+    await m.reply("✅ Referrals added")
+
+@app.on_message(filters.command("minusref") & filters.private)
+async def minusref(_, m):
+    if not is_admin(m): return
+    uid, amt = map(int, m.command[1:])
+    users.update_one({"user_id": uid}, {"$inc": {"referrals": -amt}})
+    await m.reply("✅ Referrals removed")
+
+@app.on_message(filters.command("ban") & filters.private)
+async def ban(_, m):
+    if not is_admin(m): return
+    users.update_one({"user_id": int(m.command[1])}, {"$set": {"banned": 1}})
+    await m.reply("🚫 User banned")
+
+@app.on_message(filters.command("unban") & filters.private)
+async def unban(_, m):
+    if not is_admin(m): return
+    users.update_one({"user_id": int(m.command[1])}, {"$set": {"banned": 0}})
+    await m.reply("✅ User unbanned")
+
 @app.on_message(filters.command("total") & filters.private)
-async def total(_, message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
-    await message.reply(f"👥 Total Users: {users.count_documents({})}")
+async def total(_, m):
+    if not is_admin(m): return
+    await m.reply(f"👥 Total users: {users.count_documents({})}")
 
 @app.on_message(filters.command("broadcast") & filters.private)
-async def broadcast(_, message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
+async def broadcast(_, m):
+    if not is_admin(m): return
+    if not m.reply_to_message:
+        return await m.reply("Reply to a message")
 
-    if not message.reply_to_message:
-        await message.reply("❌ Kisi message ko reply karke /broadcast likho")
-        return
-
-    sent, failed = 0, 0
     for u in users.find({}, {"user_id": 1}):
         try:
-            await message.reply_to_message.copy(u["user_id"])
-            sent += 1
+            await m.reply_to_message.copy(u["user_id"])
             await asyncio.sleep(0.05)
         except:
-            failed += 1
+            pass
 
-    await message.reply(f"✅ Broadcast Done\n\n📤 Sent: {sent}\n❌ Failed: {failed}")
+    await m.reply("✅ Broadcast done")
 
-print("🤖 Bot Started Successfully")
+print("🤖 BOT STARTED (FINAL BUILD)")
 app.run()
