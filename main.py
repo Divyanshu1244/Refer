@@ -18,7 +18,7 @@ API_HASH = os.getenv("API_HASH") or "1d8fc7e8552f7141d5071f184af921e7"
 MONGO_URL = os.getenv("MONGO_URL") or "mongodb+srv://sanjublogscom_db_user:Mahakal456@cluster0.cwi48dt.mongodb.net/?appName=Cluster0"
 
 FORCE_CHANNEL_1 = "@KHELO_INDIANS"
-FORCE_CHANNEL_2 = "@payalgamingviralvideo123"
+FORCE_CHANNEL_2 = -1003582278269
 
 SUPPORT_ID = "@YourSupportUsername"
 UPDATE_CHANNEL = "https://t.me/KHELO_INDIANS"
@@ -75,7 +75,7 @@ def force_buttons():
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("✅ Join Channel 1", url=f"https://t.me/{FORCE_CHANNEL_1[1:]}")],
-            [InlineKeyboardButton("✅ Join Channel 2", url=f"https://t.me/{FORCE_CHANNEL_2[1:]}")],
+            [InlineKeyboardButton("✅ Join Channel 2", url="https://t.me/+hpOS9fIEJRkzN2U1")],
             [InlineKeyboardButton("🔄 Joined", callback_data="joined")]
         ]
     )
