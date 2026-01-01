@@ -10,21 +10,6 @@ from pyrogram.types import (
 )
 from pyrogram.enums import ChatMemberStatus
 
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-def force_buttons():
-    buttons = []
-
-    for ch in FSUB_CHANNELS:
-        buttons.append([
-            InlineKeyboardButton("📢 Join Channel", url=ch["link"])
-        ])
-
-    buttons.append([
-        InlineKeyboardButton("✅ Joined", callback_data="joined")
-    ])
-
-    return InlineKeyboardMarkup(buttons)
 # ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN") or "8231560346:AAEYH6--lmZyOc3vyb2ju-tPkhDJf05rrvU"
 API_ID = int(os.getenv("API_ID") or 36030323)
@@ -38,7 +23,6 @@ FORCE_CHANNEL_2 = "@payalgamingviralvideo123"
 # ===== FORCE SUB CHANNELS =====
 FSUB_CHANNELS = [
     {"id": -1003582278269, "link": "https://t.me/+hpOS9fIEJRkzN2U1"}
-    
     # 👈 NEW PRIVATE CHANNEL
 ]
 
@@ -71,16 +55,6 @@ def main_menu():
     )
 
 # ================= FORCE JOIN CHECK =================
-async def is_joined(user_id: int):
-    for ch in FSUB_CHANNELS:
-        try:
-            member = await app.get_chat_member(ch["id"], user_id)
-            if member.status in ["left", "kicked"]:
-                return False
-        except:
-            return False
-    return True
-
 async def is_joined(user_id):
     try:
         m1 = await app.get_chat_member(FORCE_CHANNEL_1, user_id)
@@ -137,7 +111,7 @@ async def start(client, message):
             "banned": False
         })
 
-# Logger: Notify referrer if ref_id exists
+        # Logger: Notify referrer if ref_id exists
         if ref_id:
             referrer = users.find_one({"user_id": ref_id})
             if referrer:
@@ -269,7 +243,7 @@ async def menu(_, message):
             else:
                 prize = "—"
 
-msg += f"{i}. {u['user_id']} — {u['referrals']} | {prize}\n"
+            msg += f"{i}. {u['user_id']} — {u['referrals']} | {prize}\n"
 
         await message.reply(msg)
 
